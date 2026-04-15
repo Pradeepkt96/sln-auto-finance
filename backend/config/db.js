@@ -2,8 +2,14 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    // Use Atlas (prod) URI in production, local URI in development
+    const uri =
+      process.env.NODE_ENV === 'production'
+        ? process.env.MONGO_URI_PROD
+        : process.env.MONGO_URI;
+
+    const conn = await mongoose.connect(uri);
+    console.log(`MongoDB Connected [${process.env.NODE_ENV || 'development'}]: ${conn.connection.host}`);
   } catch (error) {
     console.error(`MongoDB connection error: ${error.message}`);
     process.exit(1);
