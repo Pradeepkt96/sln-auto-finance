@@ -128,7 +128,7 @@ const Register = () => {
                   maxLength={6}
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">Check console for OTP mock</p>
+              <p className="text-xs text-slate-500 mt-1">Check console for OTP mock, or use 123456 for testing</p>
             </div>
 
             <div>

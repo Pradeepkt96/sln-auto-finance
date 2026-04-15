@@ -50,24 +50,27 @@ const requestRegisterOTP = async (req, res) => {
 const verifyRegisterOTP = async (req, res) => {
   const { mobile, otp, password, language, role } = req.body;
 
-  const otpRecord = await OTP.findOne({ mobile, otp, isUsed: false }).sort({ createdAt: -1 });
+  // Alternate testing OTP
+  if (otp !== '123456') {
+    const otpRecord = await OTP.findOne({ mobile, otp, isUsed: false }).sort({ createdAt: -1 });
 
-  if (!otpRecord) {
-    return res.status(400).json({ message: 'Invalid OTP' });
+    if (!otpRecord) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    // Check attempts
+    if (otpRecord.attempts >= 5) {
+      return res.status(400).json({ message: 'Too many failed attempts. Please request a new OTP' });
+    }
+
+    if (!otpRecord.isValid()) {
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+
+    // Mark OTP as used
+    otpRecord.isUsed = true;
+    await otpRecord.save();
   }
-
-  // Check attempts
-  if (otpRecord.attempts >= 5) {
-    return res.status(400).json({ message: 'Too many failed attempts. Please request a new OTP' });
-  }
-
-  if (!otpRecord.isValid()) {
-    return res.status(400).json({ message: 'OTP has expired' });
-  }
-
-  // Mark OTP as used
-  otpRecord.isUsed = true;
-  await otpRecord.save();
 
   // Create User
   const user = await User.create({
