@@ -12,10 +12,17 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://sln-auto-finance.vercel.app'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and any vercel.app domain
+    if (/^https?:\/\/localhost:\d+$/.test(origin) || /\.vercel\.app$/.test(origin) || origin === 'https://sln-auto-finance.vercel.app') {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json());
