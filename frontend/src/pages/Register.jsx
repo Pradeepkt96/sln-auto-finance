@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { UserPlus, Phone, Lock, Hash } from 'lucide-react';
+import sln from '../api';
+import { UserPlus, Phone, Lock, Hash, Eye, EyeOff, User } from 'lucide-react';
 
 const Register = () => {
   const { t, i18n } = useTranslation();
@@ -10,8 +10,10 @@ const Register = () => {
   
   const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify & Register
   const [mobile, setMobile] = useState('');
+  const [username, setUsername] = useState('');
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -24,7 +26,7 @@ const Register = () => {
     setMessage('');
 
     try {
-      const { data } = await axios.post('http://localhost:5000/api/auth/register', {
+      const { data } = await sln.post('/auth/register', {
         mobile,
         language: i18n.language,
       });
@@ -42,7 +44,8 @@ const Register = () => {
     setError('');
 
     try {
-      const { data } = await axios.post('http://localhost:5000/api/auth/verify-register', {
+      const { data } = await sln.post('/auth/verify-register', {
+        username,
         mobile,
         otp,
         password,
@@ -100,6 +103,21 @@ const Register = () => {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Username / Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 text-slate-400" size={20} />
+                <input
+                  type="text"
+                  className="input-field pl-10"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your name"
+                  required
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               className="btn-primary flex justify-center items-center"
@@ -136,14 +154,21 @@ const Register = () => {
               <div className="relative">
                 <Lock className="absolute left-3 top-3 text-slate-400" size={20} />
                 <input
-                  type="password"
-                  className="input-field pl-10"
+                  type={showPassword ? 'text' : 'password'}
+                  className="input-field pl-10 pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create a password"
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 

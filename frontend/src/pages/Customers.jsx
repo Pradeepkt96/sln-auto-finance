@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import sln from '../api';
 import { PlusCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, X, AlertCircle } from 'lucide-react';
 
 // Validation helpers
@@ -50,15 +50,12 @@ const Customers = () => {
 
   const fetchCustomers = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
 
-      const { data } = await axios.get(`http://localhost:5000/api/customers?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await sln.get(`/customers?${params.toString()}`);
       setCustomers(data);
     } catch (error) {
       console.error('Failed to fetch customers', error);
@@ -99,11 +96,8 @@ const Customers = () => {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/customers', {
+      await sln.post('/customers', {
         name, mobile, address, vehicleNumber: vehicleNumber.toUpperCase()
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       setShowForm(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import sln from '../api';
 import { PlusCircle, Info, Search, ArrowUpDown, ArrowUp, ArrowDown, X, ChevronDown } from 'lucide-react';
 
 const STATUS_OPTIONS = ['active', 'closed', 'default'];
@@ -65,7 +65,6 @@ const Loans = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (filterStatus) params.append('status', filterStatus);
@@ -73,12 +72,8 @@ const Loans = () => {
       params.append('sortOrder', sortOrder);
 
       const [loansRes, customersRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/loans?${params.toString()}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get('http://localhost:5000/api/customers', {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
+        sln.get(`/loans?${params.toString()}`),
+        sln.get('/customers'),
       ]);
       setLoans(loansRes.data);
       setCustomers(customersRes.data);
@@ -106,16 +101,13 @@ const Loans = () => {
   const handleCreateLoan = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/loans', {
+      await sln.post('/loans', {
         hpNumber,
         customerReference: customerRef,
         loanAmount: Number(loanAmount),
         interestRate: Number(interestRate),
         installments: Number(installments),
         emiAmount: emiAmount !== '' ? Number(emiAmount) : Number(autoEmi),
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       setShowForm(false);
@@ -131,11 +123,9 @@ const Loans = () => {
   const handleStatusChange = async (loanId, newStatus) => {
     setChangingStatus(loanId);
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.put(
-        `http://localhost:5000/api/loans/${loanId}/status`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const { data } = await sln.put(
+        `/loans/${loanId}/status`,
+        { status: newStatus }
       );
       setLoans(prev => prev.map(l => l._id === loanId ? { ...l, status: data.status } : l));
     } catch (error) {

@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { LogIn, Phone, Lock } from 'lucide-react';
+import sln from '../api';
+import { LogIn, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +19,7 @@ const Login = () => {
     setError('');
 
     try {
-      const { data } = await axios.post('http://localhost:5000/api/auth/login', {
+      const { data } = await sln.post('/auth/login', {
         mobile,
         password,
       });
@@ -73,13 +74,20 @@ const Login = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-3 text-slate-400" size={20} />
               <input
-                type="password"
-                className="input-field pl-10"
+                type={showPassword ? 'text' : 'password'}
+                className="input-field pl-10 pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Globe, Menu, X, Calculator, Users, FileText, LayoutDashboard } from 'lucide-react';
+import { LogOut, Globe, Menu, X, Calculator, Users, FileText, LayoutDashboard, Lock } from 'lucide-react';
 import { useState } from 'react';
 
 const Navbar = () => {
@@ -65,6 +65,13 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
+            <Link
+              to="/change-password"
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 transition"
+            >
+              <Lock size={16} className="text-slate-300" />
+              <span className="text-sm font-medium text-slate-300">Password</span>
+            </Link>
             <button
               onClick={toggleLanguage}
               className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 transition"
@@ -116,6 +123,14 @@ const Navbar = () => {
               );
             })}
             <div className="border-t border-slate-700 my-2 pt-2 space-y-3">
+              <Link
+                to="/change-password"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-slate-300 hover:bg-slate-700"
+              >
+                <Lock size={18} className="text-slate-300" />
+                <span>Change Password</span>
+              </Link>
               <button
                 onClick={() => { toggleLanguage(); setIsMenuOpen(false); }}
                 className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-slate-300 hover:bg-slate-700"

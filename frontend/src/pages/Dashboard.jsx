@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import sln from '../api';
 import { 
   Briefcase, 
   IndianRupee, 
@@ -21,10 +21,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const { data } = await axios.get('http://localhost:5000/api/dashboard', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await sln.get('/dashboard');
         setMetrics(data);
       } catch (error) {
         console.error('Failed to fetch metrics', error);

@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-const API = axios.create({
+const sln = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
 });
 
 // Configure request interceptor to append Authorization token
-API.interceptors.request.use(
+sln.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -16,4 +16,4 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-export default API;
+export default sln;

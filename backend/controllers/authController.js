@@ -48,7 +48,7 @@ const requestRegisterOTP = async (req, res) => {
 // @route   POST /api/auth/verify-register
 // @access  Public
 const verifyRegisterOTP = async (req, res) => {
-  const { mobile, otp, password, language, role } = req.body;
+  const { username, mobile, otp, password, language, role } = req.body;
 
   // Alternate testing OTP
   if (otp !== '123456') {
@@ -74,6 +74,7 @@ const verifyRegisterOTP = async (req, res) => {
 
   // Create User
   const user = await User.create({
+    username,
     mobile,
     password,
     language: language || 'en',
@@ -83,6 +84,7 @@ const verifyRegisterOTP = async (req, res) => {
   if (user) {
     res.status(201).json({
       _id: user._id,
+      username: user.username,
       mobile: user.mobile,
       role: user.role,
       language: user.language,
@@ -119,8 +121,32 @@ const loginUser = async (req, res) => {
   }
 };
 
+// @desc    Change User Password
+// @route   PUT /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    
+    // req.user is set by authMiddleware protect
+    const user = await User.findById(req.user._id);
+
+    if (user && (await user.matchPassword(oldPassword))) {
+      user.password = newPassword;
+      await user.save();
+      res.json({ message: 'Password changed successfully' });
+    } else {
+      res.status(401).json({ message: 'Invalid old password' });
+    }
+  } catch (error) {
+    console.error('Change password error:', error.message);
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
 module.exports = {
   requestRegisterOTP,
   verifyRegisterOTP,
   loginUser,
+  changePassword,
 };

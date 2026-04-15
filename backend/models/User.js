@@ -3,6 +3,10 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
+    username: {
+      type: String,
+      required: false, // Made false so existing users without username don't break on save during other ops
+    },
     mobile: {
       type: String,
       required: true,
