@@ -12,6 +12,24 @@ const loanSchema = new mongoose.Schema(
       ref: 'Customer',
       required: true,
     },
+    // Vehicle details
+    vehicleNumber: {
+      type: String,
+      required: true,
+    },
+    make: {
+      type: String,
+      required: true, // e.g. Honda, TVS, Bajaj
+    },
+    vehicleModel: {
+      type: String,
+      required: true, // e.g. 01/2026
+    },
+    color: {
+      type: String,
+      default: '',
+    },
+    // Loan details
     loanAmount: {
       type: Number,
       required: true,

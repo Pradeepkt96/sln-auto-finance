@@ -14,10 +14,6 @@ const customerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    vehicleNumber: {
-      type: String,
-      required: true,
-    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

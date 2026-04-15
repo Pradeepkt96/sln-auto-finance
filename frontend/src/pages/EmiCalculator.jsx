@@ -91,7 +91,7 @@ const EmiCalculator = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-medium text-slate-700">{t('emiAmount')}</h3>
-                <p className="text-sm text-slate-500">Fixed Monthly Installment</p>
+                <p className="text-sm text-slate-500">{t('fixedMonthlyInstallment')}</p>
               </div>
               <div className="text-3xl font-bold text-primary-600 bg-white px-6 py-3 rounded-lg shadow-sm border border-primary-100">
                 ₹ {Number(emi).toLocaleString('en-IN')}
@@ -100,8 +100,8 @@ const EmiCalculator = () => {
             {handAmount !== null && (
               <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm border border-slate-200">
                 <div>
-                  <h3 className="text-lg font-medium text-slate-700">Amount in Hand</h3>
-                  <p className="text-sm text-slate-500">After deducting document + endorsement charges</p>
+                  <h3 className="text-lg font-medium text-slate-700">{t('amountInHand')}</h3>
+                  <p className="text-sm text-slate-500">{t('afterDeductingCharges')}</p>
                 </div>
                 <div className="text-3xl font-bold text-slate-800">
                   ₹ {Number(handAmount).toLocaleString('en-IN')}

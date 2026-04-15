@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import sln from '../api';
-import { PlusCircle, Info, Search, ArrowUpDown, ArrowUp, ArrowDown, X, ChevronDown } from 'lucide-react';
+import { PlusCircle, Info, Search, ArrowUpDown, ArrowUp, ArrowDown, X, ChevronDown, AlertCircle } from 'lucide-react';
 
 const STATUS_OPTIONS = ['active', 'closed', 'default'];
 
 const STATUS_STYLES = {
-  active:  'bg-emerald-100 text-emerald-700 border-emerald-200',
-  closed:  'bg-red-100     text-red-700     border-red-200',
+  active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  closed: 'bg-red-100     text-red-700     border-red-200',
   default: 'bg-white       text-slate-600   border-slate-300',
 };
+
+const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 30 }, (_, i) => currentYear - i);
 
 const SortIcon = ({ field, sortBy, sortOrder }) => {
   if (sortBy !== field) return <ArrowUpDown size={13} className="ml-1 text-slate-400" />;
@@ -32,9 +37,9 @@ const Loans = () => {
   const [sortOrder, setSortOrder] = useState('desc');
 
   // Inline status change
-  const [changingStatus, setChangingStatus] = useState(null); // loan id being changed
+  const [changingStatus, setChangingStatus] = useState(null);
 
-  // Form State
+  // Form State — Loan
   const [hpNumber, setHpNumber] = useState('');
   const [customerRef, setCustomerRef] = useState('');
   const [loanAmount, setLoanAmount] = useState('');
@@ -42,6 +47,15 @@ const Loans = () => {
   const [installments, setInstallments] = useState('');
   const [emiAmount, setEmiAmount] = useState('');
   const [emiManuallyEdited, setEmiManuallyEdited] = useState(false);
+
+  // Form State — Vehicle
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [make, setMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [color, setColor] = useState('');
+
+  // Validation
+  const [errors, setErrors] = useState({});
 
   const roundToNearestHundred = (value) => Math.round(value / 100) * 100;
 
@@ -98,12 +112,38 @@ const Loans = () => {
     }
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+    if (!vehicleNumber) {
+      newErrors.vehicleNumber = 'Vehicle number is required';
+    } else if (!VEHICLE_REGEX.test(vehicleNumber.toUpperCase())) {
+      newErrors.vehicleNumber = 'Format: TN24BB3313';
+    }
+    if (!make.trim()) newErrors.make = 'Make is required';
+    if (!vehicleModel.trim()) newErrors.vehicleModel = 'Model is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const resetForm = () => {
+    setHpNumber(''); setCustomerRef(''); setLoanAmount(''); setInterestRate('');
+    setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
+    setVehicleNumber(''); setMake(''); setVehicleModel(''); setColor('');
+    setErrors({});
+  };
+
   const handleCreateLoan = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     try {
       await sln.post('/loans', {
         hpNumber,
         customerReference: customerRef,
+        vehicleNumber: vehicleNumber.toUpperCase(),
+        make,
+        vehicleModel,
+        color,
         loanAmount: Number(loanAmount),
         interestRate: Number(interestRate),
         installments: Number(installments),
@@ -111,8 +151,7 @@ const Loans = () => {
       });
 
       setShowForm(false);
-      setHpNumber(''); setCustomerRef(''); setLoanAmount(''); setInterestRate('');
-      setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
+      resetForm();
       fetchData();
     } catch (error) {
       console.error('Failed to create loan', error);
@@ -123,18 +162,27 @@ const Loans = () => {
   const handleStatusChange = async (loanId, newStatus) => {
     setChangingStatus(loanId);
     try {
-      const { data } = await sln.put(
-        `/loans/${loanId}/status`,
-        { status: newStatus }
-      );
+      const { data } = await sln.put(`/loans/${loanId}/status`, { status: newStatus });
       setLoans(prev => prev.map(l => l._id === loanId ? { ...l, status: data.status } : l));
     } catch (error) {
-      console.error('Status update error:', error.response?.status, error.response?.data, error.message);
       const msg = error.response?.data?.message || error.message || 'Failed to update status';
       alert(`Error ${error.response?.status || ''}: ${msg}`);
     } finally {
       setChangingStatus(null);
     }
+  };
+
+  const FieldError = ({ msg }) =>
+    msg ? (
+      <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
+        <AlertCircle size={11} /> {msg}
+      </p>
+    ) : null;
+
+  const handleVehicleNumberChange = (e) => {
+    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+    setVehicleNumber(val);
+    if (errors.vehicleNumber) setErrors(p => ({ ...p, vehicleNumber: '' }));
   };
 
   if (loading) {
@@ -151,7 +199,7 @@ const Loans = () => {
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
         <h1 className="text-2xl font-bold text-slate-800">{t('loans')}</h1>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
           className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm"
         >
           <PlusCircle size={18} className="mr-2" />
@@ -162,66 +210,121 @@ const Loans = () => {
       {/* Create Loan Form */}
       {showForm && (
         <div className="card glass animate-in fade-in slide-in-from-top-4 duration-300 border-t-4 border-t-primary-500">
-          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-4">
+          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6">
             {t('createLoan')}
           </h2>
-          <form onSubmit={handleCreateLoan} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <form onSubmit={handleCreateLoan} className="space-y-6">
+
+            {/* ── Loan Info ── */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('hpNumber')}</label>
-              <input
-                type="text" className="input-field py-2"
-                value={hpNumber} onChange={e => setHpNumber(e.target.value)} required
-              />
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('loanDetails')}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('hpNumber')}</label>
+                  <input type="text" className="input-field py-2"
+                    value={hpNumber} onChange={e => setHpNumber(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('customers')}</label>
+                  <select className="input-field py-2 bg-white"
+                    value={customerRef} onChange={e => setCustomerRef(e.target.value)} required>
+                    <option value="">Select a Customer</option>
+                    {customers.map(c => (
+                      <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('loanAmount')} (₹)</label>
+                  <input type="number" className="input-field py-2"
+                    value={loanAmount} onChange={e => setLoanAmount(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('interestRate')} (%)</label>
+                  <input type="number" step="0.1" className="input-field py-2"
+                    value={interestRate} onChange={e => setInterestRate(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('installments')}</label>
+                  <input type="number" className="input-field py-2"
+                    value={installments} onChange={e => setInstallments(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('emiAmount')}</label>
+                  <input type="number" step="0.01" className="input-field py-2"
+                    value={emiAmount}
+                    onChange={e => { setEmiAmount(e.target.value); setEmiManuallyEdited(true); }}
+                    placeholder="Auto calculated" />
+                  <p className="text-xs text-slate-500 mt-1">Auto-filled, editable before save.</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Customer</label>
-              <select
-                className="input-field py-2 bg-white"
-                value={customerRef} onChange={e => setCustomerRef(e.target.value)} required
-              >
-                <option value="">Select a Customer</option>
-                {customers.map(c => (
-                  <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
-                ))}
-              </select>
+
+            {/* ── Vehicle Info ── */}
+            <div className="border-t border-slate-100 pt-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('vehicleDetails')}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {/* Vehicle Number */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleNumber')}</label>
+                  <input
+                    type="text"
+                    className={`input-field py-2 font-mono tracking-widest ${errors.vehicleNumber ? 'border-red-400 focus:ring-red-300' : ''}`}
+                    value={vehicleNumber}
+                    onChange={handleVehicleNumberChange}
+                    placeholder="TN24BB3313"
+                    maxLength={10}
+                  />
+                  <FieldError msg={errors.vehicleNumber} />
+                  {!errors.vehicleNumber && vehicleNumber && VEHICLE_REGEX.test(vehicleNumber) && (
+                    <p className="text-xs text-emerald-600 mt-1">✓ Valid format</p>
+                  )}
+                </div>
+
+                {/* Make */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleMake')}</label>
+                  <input
+                    type="text"
+                    className={`input-field py-2 ${errors.make ? 'border-red-400 focus:ring-red-300' : ''}`}
+                    value={make}
+                    onChange={e => { setMake(e.target.value); if (errors.make) setErrors(p => ({ ...p, make: '' })); }}
+                    placeholder="e.g. Honda, TVS, Bajaj"
+                  />
+                  <FieldError msg={errors.make} />
+                </div>
+
+                {/* Vehicle Model */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleModel')}</label>
+                  <input
+                    type="text"
+                    className={`input-field py-2 ${errors.vehicleModel ? 'border-red-400 focus:ring-red-300' : ''}`}
+                    value={vehicleModel}
+                    onChange={e => { setVehicleModel(e.target.value); if (errors.vehicleModel) setErrors(p => ({ ...p, vehicleModel: '' })); }}
+                    placeholder="e.g. 01/2026, 06/2025"
+                  />
+                  <FieldError msg={errors.vehicleModel} />
+                </div>
+
+                {/* Color */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleColor')} <span className="text-slate-400 text-xs">(optional)</span></label>
+                  <input
+                    type="text"
+                    className="input-field py-2"
+                    value={color}
+                    onChange={e => setColor(e.target.value)}
+                    placeholder="e.g. Red, Black, Blue"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('loanAmount')}</label>
-              <input
-                type="number" className="input-field py-2"
-                value={loanAmount} onChange={e => setLoanAmount(e.target.value)} required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('interestRate')} (%)</label>
-              <input
-                type="number" step="0.1" className="input-field py-2"
-                value={interestRate} onChange={e => setInterestRate(e.target.value)} required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('installments')}</label>
-              <input
-                type="number" className="input-field py-2"
-                value={installments} onChange={e => setInstallments(e.target.value)} required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Auto EMI</label>
-              <input
-                type="number" step="0.01" className="input-field py-2"
-                value={emiAmount}
-                onChange={e => { setEmiAmount(e.target.value); setEmiManuallyEdited(true); }}
-                placeholder="Auto calculated EMI"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Auto-filled from (p × r) + p / n, editable before save.
-              </p>
-            </div>
-            <div className="lg:col-span-3 flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => { setShowForm(false); resetForm(); }}
                 className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium"
               >
                 Cancel
@@ -242,7 +345,7 @@ const Loans = () => {
           <input
             type="text"
             className="input-field py-2 pl-9 pr-8 text-sm"
-            placeholder="Search by HP No., customer name or mobile..."
+            placeholder="Search by HP No., vehicle, make, customer..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -299,7 +402,9 @@ const Loans = () => {
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-sm border-b border-slate-200">
                 <th className="p-4 font-medium">{t('hpNumber')}</th>
-                <th className="p-4 font-medium">Customer</th>
+                <th className="p-4 font-medium">{t('customers')}</th>
+                <th className="p-4 font-medium">{t('vehicleNumber')}</th>
+                <th className="p-4 font-medium">{t('vehicleDetails')}</th>
                 <th
                   className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
                   onClick={() => handleSortToggle('loanAmount')}
@@ -330,7 +435,7 @@ const Loans = () => {
             <tbody>
               {loans.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center">
+                  <td colSpan="8" className="p-8 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Info className="text-slate-300" size={32} />
                       <p className="text-slate-500">
@@ -361,11 +466,21 @@ const Loans = () => {
                       <div className="font-medium text-slate-800">{loan.customerReference?.name || 'Unknown'}</div>
                       <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
                     </td>
+                    <td className="p-4">
+                      <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono border border-slate-200 tracking-widest">
+                        {loan.vehicleNumber}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-medium text-slate-700">{loan.make} {loan.vehicleModel}</div>
+                      <div className="text-xs text-slate-500">
+                        {loan.color}
+                      </div>
+                    </td>
                     <td className="p-4 font-semibold text-slate-700">₹ {loan.loanAmount?.toLocaleString()}</td>
                     <td className="p-4 text-slate-600">{loan.installments} months</td>
                     <td className="p-4 font-semibold text-primary-600">₹ {loan.emiAmount?.toLocaleString()}</td>
                     <td className="p-4">
-                      {/* Admin Status Change Dropdown */}
                       <div className="relative inline-block">
                         <select
                           value={loan.status}

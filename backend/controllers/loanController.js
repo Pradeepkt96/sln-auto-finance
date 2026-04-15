@@ -25,11 +25,14 @@ const getLoans = async (req, res) => {
       .populate('customerReference', 'name mobile')
       .sort(sort);
 
-    // Search by HP number or customer name/mobile (post-populate)
+    // Search by HP number, vehicle number, make, model, or customer name/mobile (post-populate)
     if (search && search.trim()) {
       const term = search.trim().toLowerCase();
       loans = loans.filter(loan =>
         loan.hpNumber?.toLowerCase().includes(term) ||
+        loan.vehicleNumber?.toLowerCase().includes(term) ||
+        loan.make?.toLowerCase().includes(term) ||
+        loan.vehicleModel?.toLowerCase().includes(term) ||
         loan.customerReference?.name?.toLowerCase().includes(term) ||
         loan.customerReference?.mobile?.includes(term)
       );
@@ -45,12 +48,26 @@ const getLoans = async (req, res) => {
 // @route   POST /api/loans
 // @access  Private
 const createLoan = async (req, res) => {
-  const { hpNumber, customerReference, loanAmount, interestRate, installments, emiAmount } = req.body;
+  const {
+    hpNumber, customerReference,
+    vehicleNumber, make, vehicleModel, color,
+    loanAmount, interestRate, installments, emiAmount,
+  } = req.body;
+
+  // Validate vehicle number format
+  const vehicleRegex = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
+  if (!vehicleNumber || !vehicleRegex.test(vehicleNumber.toUpperCase())) {
+    return res.status(400).json({ message: 'Invalid vehicle number. Use format like TN24BB3313.' });
+  }
 
   try {
     const loan = await Loan.create({
       hpNumber,
       customerReference,
+      vehicleNumber: vehicleNumber.toUpperCase(),
+      make,
+      vehicleModel,
+      color: color || '',
       loanAmount,
       interestRate,
       installments,
@@ -67,7 +84,7 @@ const createLoan = async (req, res) => {
         installmentNumber: i,
         dueDate: new Date(currentDate),
         amount: emiAmount,
-        status: 'pending'
+        status: 'pending',
       });
     }
 

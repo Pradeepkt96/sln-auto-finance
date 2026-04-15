@@ -5,18 +5,11 @@ import { PlusCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, X, AlertCircle } f
 
 // Validation helpers
 const MOBILE_REGEX = /^[6-9]\d{9}$/;
-const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
 
 const validateMobile = (val) => {
   if (!val) return 'Mobile number is required';
   if (!/^\d+$/.test(val)) return 'Only digits allowed';
   if (!MOBILE_REGEX.test(val)) return 'Must be a 10-digit Indian number (starts with 6-9)';
-  return '';
-};
-
-const validateVehicle = (val) => {
-  if (!val) return 'Vehicle number is required';
-  if (!VEHICLE_REGEX.test(val.toUpperCase())) return 'Format: TN24BB3313 (State + District + Series + Number)';
   return '';
 };
 
@@ -42,7 +35,6 @@ const Customers = () => {
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
   const [address, setAddress] = useState('');
-  const [vehicleNumber, setVehicleNumber] = useState('');
 
   // Validation errors
   const [errors, setErrors] = useState({});
@@ -84,8 +76,6 @@ const Customers = () => {
     const mErr = validateMobile(mobile);
     if (mErr) newErrors.mobile = mErr;
     if (!address.trim()) newErrors.address = 'Address is required';
-    const vErr = validateVehicle(vehicleNumber);
-    if (vErr) newErrors.vehicleNumber = vErr;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -96,12 +86,10 @@ const Customers = () => {
 
     setSubmitting(true);
     try {
-      await sln.post('/customers', {
-        name, mobile, address, vehicleNumber: vehicleNumber.toUpperCase()
-      });
+      await sln.post('/customers', { name, mobile, address });
 
       setShowForm(false);
-      setName(''); setMobile(''); setAddress(''); setVehicleNumber('');
+      setName(''); setMobile(''); setAddress('');
       setErrors({});
       fetchCustomers();
     } catch (error) {
@@ -116,12 +104,6 @@ const Customers = () => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
     setMobile(val);
     if (errors.mobile) setErrors(prev => ({ ...prev, mobile: validateMobile(val) }));
-  };
-
-  const handleVehicleChange = (e) => {
-    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-    setVehicleNumber(val);
-    if (errors.vehicleNumber) setErrors(prev => ({ ...prev, vehicleNumber: validateVehicle(val) }));
   };
 
   const FieldError = ({ msg }) =>
@@ -159,7 +141,7 @@ const Customers = () => {
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-4">
             {t('addCustomer')}
           </h2>
-          <form onSubmit={handleAddCustomer} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" noValidate>
+          <form onSubmit={handleAddCustomer} className="grid grid-cols-1 md:grid-cols-3 gap-4" noValidate>
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('name')}</label>
@@ -209,27 +191,10 @@ const Customers = () => {
               <FieldError msg={errors.address} />
             </div>
 
-            {/* Vehicle Number */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleNumber')}</label>
-              <input
-                type="text"
-                className={`input-field py-2 font-mono tracking-widest ${errors.vehicleNumber ? 'border-red-400 focus:ring-red-300' : ''}`}
-                value={vehicleNumber}
-                onChange={handleVehicleChange}
-                placeholder="TN24BB3313"
-                maxLength={10}
-              />
-              <FieldError msg={errors.vehicleNumber} />
-              {!errors.vehicleNumber && vehicleNumber && VEHICLE_REGEX.test(vehicleNumber) && (
-                <p className="text-xs text-emerald-600 mt-1">✓ Valid format</p>
-              )}
-            </div>
-
-            <div className="lg:col-span-4 flex justify-end gap-3 mt-2">
+            <div className="md:col-span-3 flex justify-end gap-3 mt-2">
               <button
                 type="button"
-                onClick={() => { setShowForm(false); setErrors({}); setName(''); setMobile(''); setAddress(''); setVehicleNumber(''); }}
+                onClick={() => { setShowForm(false); setErrors({}); setName(''); setMobile(''); setAddress(''); }}
                 className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium"
               >
                 Cancel
@@ -250,7 +215,7 @@ const Customers = () => {
           <input
             type="text"
             className="input-field py-2 pl-9 pr-8 text-sm"
-            placeholder="Search by name, mobile, address or vehicle..."
+            placeholder="Search by name, mobile or address..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -303,18 +268,12 @@ const Customers = () => {
                   <span className="flex items-center">{t('mobileNumber')} <SortIcon field="mobile" sortBy={sortBy} sortOrder={sortOrder} /></span>
                 </th>
                 <th className="p-4 font-medium">{t('address')}</th>
-                <th
-                  className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
-                  onClick={() => handleSortToggle('vehicleNumber')}
-                >
-                  <span className="flex items-center">{t('vehicleNumber')} <SortIcon field="vehicleNumber" sortBy={sortBy} sortOrder={sortOrder} /></span>
-                </th>
               </tr>
             </thead>
             <tbody>
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center">
+                  <td colSpan="3" className="p-8 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Search size={32} className="text-slate-300" />
                       <p className="text-slate-500">
@@ -337,11 +296,6 @@ const Customers = () => {
                       </span>
                     </td>
                     <td className="p-4 text-slate-600 truncate max-w-xs">{customer.address}</td>
-                    <td className="p-4">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono border border-slate-200 tracking-widest">
-                        {customer.vehicleNumber}
-                      </span>
-                    </td>
                   </tr>
                 ))
               )}

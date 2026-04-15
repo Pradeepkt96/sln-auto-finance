@@ -9,7 +9,7 @@ const getCustomers = async (req, res) => {
 
     let query = {};
 
-    // Search by name, mobile, address, or vehicle number
+    // Search by name, mobile, or address
     if (search && search.trim()) {
       const term = search.trim();
       query = {
@@ -17,14 +17,13 @@ const getCustomers = async (req, res) => {
           { name: { $regex: term, $options: 'i' } },
           { mobile: { $regex: term, $options: 'i' } },
           { address: { $regex: term, $options: 'i' } },
-          { vehicleNumber: { $regex: term, $options: 'i' } },
         ],
       };
     }
 
     // Build sort object
     const sort = {};
-    const allowedSortFields = ['name', 'mobile', 'vehicleNumber', 'createdAt'];
+    const allowedSortFields = ['name', 'mobile', 'createdAt'];
     const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
     sort[field] = sortOrder === 'asc' ? 1 : -1;
 
@@ -39,9 +38,9 @@ const getCustomers = async (req, res) => {
 // @route   POST /api/customers
 // @access  Private
 const createCustomer = async (req, res) => {
-  const { name, mobile, address, vehicleNumber } = req.body;
+  const { name, mobile, address } = req.body;
 
-  if (!name || !mobile || !address || !vehicleNumber) {
+  if (!name || !mobile || !address) {
     return res.status(400).json({ message: 'Please provide all fields' });
   }
 
@@ -51,18 +50,11 @@ const createCustomer = async (req, res) => {
     return res.status(400).json({ message: 'Invalid mobile number. Must be a 10-digit Indian number starting with 6-9.' });
   }
 
-  // Validate Indian vehicle number format (e.g. TN24BB3313)
-  const vehicleRegex = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
-  if (!vehicleRegex.test(vehicleNumber.toUpperCase())) {
-    return res.status(400).json({ message: 'Invalid vehicle number. Use format like TN24BB3313.' });
-  }
-
   try {
     const customer = await Customer.create({
       name,
       mobile,
       address,
-      vehicleNumber: vehicleNumber.toUpperCase(),
       createdBy: req.user._id,
     });
     res.status(201).json(customer);
