@@ -20,11 +20,28 @@ const paymentSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      required: true,
+      required: true, // EMI Amount or installment amount due
+    },
+    receivedAmount: {
+      type: Number,
+      default: 0,
+    },
+    receiptNo: {
+      type: String,
+      default: '',
+    },
+    paymentMode: {
+      type: String,
+      enum: ['cash', 'online', 'cheque', 'other'],
+      default: 'cash',
+    },
+    penalty: {
+      type: Number,
+      default: 0,
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'overdue'],
+      enum: ['pending', 'paid', 'overdue', 'partially_paid'],
       default: 'pending',
     },
   },

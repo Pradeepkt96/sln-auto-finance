@@ -16,8 +16,8 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     
-    // Allow localhost and any vercel.app domain
-    if (/^https?:\/\/localhost:\d+$/.test(origin) || /\.vercel\.app$/.test(origin) || origin === 'https://sln-auto-finance.vercel.app') {
+    // Allow localhost, 127.0.0.1 and any vercel.app domain
+    if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin) || /\.vercel\.app$/.test(origin) || origin === 'https://sln-auto-finance.vercel.app') {
       return callback(null, true);
     }
     

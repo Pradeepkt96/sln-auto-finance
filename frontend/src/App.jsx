@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import EmiCalculator from './pages/EmiCalculator';
 import Customers from './pages/Customers';
 import Loans from './pages/Loans';
+import LoanDue from './pages/LoanDue';
+import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -25,6 +27,8 @@ function App() {
             <Route path="/emi-calculator" element={<EmiCalculator />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/loans" element={<Loans />} />
+            <Route path="/loans/:id/ledger" element={<LoanDue />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/change-password" element={<ChangePassword />} />
           </Route>
         </Routes>

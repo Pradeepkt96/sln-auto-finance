@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link, useNavigate } from 'react-router-dom';
 import sln from '../api';
-import { PlusCircle, Info, Search, ArrowUpDown, ArrowUp, ArrowDown, X, ChevronDown, AlertCircle } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Info, 
+  Search, 
+  ArrowUpDown, 
+  ArrowUp, 
+  ArrowDown, 
+  X, 
+  ChevronDown, 
+  AlertCircle,
+  Edit2,
+  Trash2,
+  Table as TableIcon
+} from 'lucide-react';
 
 const STATUS_OPTIONS = ['active', 'closed', 'default'];
 
@@ -13,9 +27,6 @@ const STATUS_STYLES = {
 
 const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
 
-const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 30 }, (_, i) => currentYear - i);
-
 const SortIcon = ({ field, sortBy, sortOrder }) => {
   if (sortBy !== field) return <ArrowUpDown size={13} className="ml-1 text-slate-400" />;
   return sortOrder === 'asc'
@@ -25,10 +36,12 @@ const SortIcon = ({ field, sortBy, sortOrder }) => {
 
 const Loans = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   // Search / Filter / Sort
   const [search, setSearch] = useState('');
@@ -38,6 +51,10 @@ const Loans = () => {
 
   // Inline status change
   const [changingStatus, setChangingStatus] = useState(null);
+
+  // Profile info
+  const role = localStorage.getItem('role');
+  const isAdmin = role === 'admin';
 
   // Form State — Loan
   const [hpNumber, setHpNumber] = useState('');
@@ -130,33 +147,69 @@ const Loans = () => {
     setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
     setVehicleNumber(''); setMake(''); setVehicleModel(''); setColor('');
     setErrors({});
+    setEditingId(null);
+    setShowForm(false);
   };
 
-  const handleCreateLoan = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    try {
-      await sln.post('/loans', {
-        hpNumber,
-        customerReference: customerRef,
-        vehicleNumber: vehicleNumber.toUpperCase(),
-        make,
-        vehicleModel,
-        color,
-        loanAmount: Number(loanAmount),
-        interestRate: Number(interestRate),
-        installments: Number(installments),
-        emiAmount: emiAmount !== '' ? Number(emiAmount) : Number(autoEmi),
-      });
+    const payload = {
+      hpNumber,
+      customerReference: customerRef,
+      vehicleNumber: vehicleNumber.toUpperCase(),
+      make,
+      vehicleModel,
+      color,
+      loanAmount: Number(loanAmount),
+      interestRate: Number(interestRate),
+      installments: Number(installments),
+      emiAmount: emiAmount !== '' ? Number(emiAmount) : Number(autoEmi),
+    };
 
-      setShowForm(false);
+    try {
+      if (editingId) {
+        await sln.put(`/loans/${editingId}`, payload);
+      } else {
+        await sln.post('/loans', payload);
+      }
+
       resetForm();
       fetchData();
     } catch (error) {
-      console.error('Failed to create loan', error);
-      alert(error.response?.data?.message || 'Error creating loan');
+      console.error('Failed to save loan', error);
+      alert(error.response?.data?.message || 'Error saving loan');
     }
+  };
+
+  const handleDelete = async (id) => {
+    if (!isAdmin) return;
+    if (!window.confirm('Are you sure you want to delete this loan and all associated payments?')) return;
+
+    try {
+      await sln.delete(`/loans/${id}`);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error deleting loan');
+    }
+  };
+
+  const handleEdit = (loan) => {
+    setEditingId(loan._id);
+    setHpNumber(loan.hpNumber);
+    setCustomerRef(loan.customerReference?._id || '');
+    setLoanAmount(loan.loanAmount);
+    setInterestRate(loan.interestRate);
+    setInstallments(loan.installments);
+    setEmiAmount(loan.emiAmount);
+    setEmiManuallyEdited(true);
+    setVehicleNumber(loan.vehicleNumber);
+    setMake(loan.make);
+    setVehicleModel(loan.vehicleModel);
+    setColor(loan.color);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleStatusChange = async (loanId, newStatus) => {
@@ -199,23 +252,23 @@ const Loans = () => {
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
         <h1 className="text-2xl font-bold text-slate-800">{t('loans')}</h1>
         <button
-          onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
+          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm"
         >
-          <PlusCircle size={18} className="mr-2" />
-          {t('createLoan')}
+          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
+          {showForm ? 'Cancel' : t('createLoan')}
         </button>
       </div>
 
-      {/* Create Loan Form */}
+      {/* Form */}
       {showForm && (
         <div className="card glass animate-in fade-in slide-in-from-top-4 duration-300 border-t-4 border-t-primary-500">
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6">
-            {t('createLoan')}
+            {editingId ? 'Edit Loan' : t('createLoan')}
           </h2>
-          <form onSubmit={handleCreateLoan} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* ── Loan Info ── */}
+            {/* Loan Info */}
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('loanDetails')}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -255,16 +308,14 @@ const Loans = () => {
                     value={emiAmount}
                     onChange={e => { setEmiAmount(e.target.value); setEmiManuallyEdited(true); }}
                     placeholder="Auto calculated" />
-                  <p className="text-xs text-slate-500 mt-1">Auto-filled, editable before save.</p>
                 </div>
               </div>
             </div>
 
-            {/* ── Vehicle Info ── */}
+            {/* Vehicle Info */}
             <div className="border-t border-slate-100 pt-5">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('vehicleDetails')}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {/* Vehicle Number */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleNumber')}</label>
                   <input
@@ -276,12 +327,8 @@ const Loans = () => {
                     maxLength={10}
                   />
                   <FieldError msg={errors.vehicleNumber} />
-                  {!errors.vehicleNumber && vehicleNumber && VEHICLE_REGEX.test(vehicleNumber) && (
-                    <p className="text-xs text-emerald-600 mt-1">✓ Valid format</p>
-                  )}
                 </div>
 
-                {/* Make */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleMake')}</label>
                   <input
@@ -289,12 +336,11 @@ const Loans = () => {
                     className={`input-field py-2 ${errors.make ? 'border-red-400 focus:ring-red-300' : ''}`}
                     value={make}
                     onChange={e => { setMake(e.target.value); if (errors.make) setErrors(p => ({ ...p, make: '' })); }}
-                    placeholder="e.g. Honda, TVS, Bajaj"
+                    placeholder="e.g. Honda"
                   />
                   <FieldError msg={errors.make} />
                 </div>
 
-                {/* Vehicle Model */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleModel')}</label>
                   <input
@@ -302,206 +348,114 @@ const Loans = () => {
                     className={`input-field py-2 ${errors.vehicleModel ? 'border-red-400 focus:ring-red-300' : ''}`}
                     value={vehicleModel}
                     onChange={e => { setVehicleModel(e.target.value); if (errors.vehicleModel) setErrors(p => ({ ...p, vehicleModel: '' })); }}
-                    placeholder="e.g. 01/2026, 06/2025"
+                    placeholder="e.g. 01/2026"
                   />
                   <FieldError msg={errors.vehicleModel} />
-                </div>
-
-                {/* Color */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleColor')} <span className="text-slate-400 text-xs">(optional)</span></label>
-                  <input
-                    type="text"
-                    className="input-field py-2"
-                    value={color}
-                    onChange={e => setColor(e.target.value)}
-                    placeholder="e.g. Red, Black, Blue"
-                  />
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); resetForm(); }}
-                className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium"
-              >
+              <button type="button" onClick={resetForm} className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium">
                 Cancel
               </button>
               <button type="submit" className="btn-primary w-auto py-2 px-8">
-                {t('createLoan')}
+                {editingId ? 'Update Loan' : t('createLoan')}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Search, Filter & Sort Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-start sm:items-center">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[220px] max-w-md">
+      {/* Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px] max-w-md w-full">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             className="input-field py-2 pl-9 pr-8 text-sm"
-            placeholder="Search by HP No., vehicle, make, customer..."
+            placeholder="Search HP No., vehicle, customer..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <X size={14} />
-            </button>
-          )}
         </div>
 
-        {/* Status Filter */}
-        <div className="relative">
-          <select
-            className="input-field py-2 pr-8 text-sm bg-white appearance-none cursor-pointer"
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {STATUS_OPTIONS.map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        </div>
-
-        {/* Sort controls */}
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-slate-500 text-xs">Sort:</span>
-          {[
-            { key: 'createdAt', label: 'Date' },
-            { key: 'loanAmount', label: 'Amount' },
-            { key: 'emiAmount', label: 'EMI' },
-            { key: 'installments', label: 'Months' },
-          ].map(s => (
-            <button
-              key={s.key}
-              onClick={() => handleSortToggle(s.key)}
-              className={`flex items-center px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors
-                ${sortBy === s.key ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}
-            >
-              {s.label}
-              <SortIcon field={s.key} sortBy={sortBy} sortOrder={sortOrder} />
-            </button>
-          ))}
-        </div>
-
-        <span className="text-xs text-slate-400 ml-auto">{loans.length} loan{loans.length !== 1 ? 's' : ''}</span>
+        <select
+          className="input-field py-2 pr-8 text-sm bg-white cursor-pointer w-auto"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
       </div>
 
       {/* Loans Table */}
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-hidden shadow-sm border-slate-100">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-600 text-sm border-b border-slate-200">
-                <th className="p-4 font-medium">{t('hpNumber')}</th>
-                <th className="p-4 font-medium">{t('customers')}</th>
-                <th className="p-4 font-medium">{t('vehicleNumber')}</th>
-                <th className="p-4 font-medium">{t('vehicleDetails')}</th>
-                <th
-                  className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
-                  onClick={() => handleSortToggle('loanAmount')}
-                >
-                  <span className="flex items-center">
-                    {t('loanAmount')} <SortIcon field="loanAmount" sortBy={sortBy} sortOrder={sortOrder} />
-                  </span>
-                </th>
-                <th
-                  className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
-                  onClick={() => handleSortToggle('installments')}
-                >
-                  <span className="flex items-center">
-                    {t('installments')} <SortIcon field="installments" sortBy={sortBy} sortOrder={sortOrder} />
-                  </span>
-                </th>
-                <th
-                  className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
-                  onClick={() => handleSortToggle('emiAmount')}
-                >
-                  <span className="flex items-center">
-                    EMI <SortIcon field="emiAmount" sortBy={sortBy} sortOrder={sortOrder} />
-                  </span>
-                </th>
-                <th className="p-4 font-medium">{t('status')}</th>
+              <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                <th className="p-4">{t('hpNumber')}</th>
+                <th className="p-4">{t('customers')}</th>
+                <th className="p-4">{t('vehicleNumber')}</th>
+                <th className="p-4">Loan Info</th>
+                <th className="p-4">{t('status')}</th>
+                <th className="p-4 text-center">{t('actions')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {loans.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="p-8 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Info className="text-slate-300" size={32} />
-                      <p className="text-slate-500">
-                        {search || filterStatus
-                          ? 'No loans match your search/filter.'
-                          : 'No loans created yet. Create one above.'}
-                      </p>
-                      {(search || filterStatus) && (
-                        <button
-                          onClick={() => { setSearch(''); setFilterStatus(''); }}
-                          className="text-primary-600 text-sm underline"
-                        >
-                          Clear filters
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <tr><td colSpan="6" className="p-10 text-center text-slate-400">No loans found</td></tr>
               ) : (
                 loans.map(loan => (
-                  <tr key={loan._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="p-4 font-medium text-slate-800">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono tracking-wide">
-                        {loan.hpNumber}
-                      </span>
+                  <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="p-4">
+                      <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono tracking-wide">{loan.hpNumber}</span>
                     </td>
                     <td className="p-4">
-                      <div className="font-medium text-slate-800">{loan.customerReference?.name || 'Unknown'}</div>
+                      <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
                       <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
                     </td>
                     <td className="p-4">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono border border-slate-200 tracking-widest">
-                        {loan.vehicleNumber}
-                      </span>
+                      <div className="font-medium text-slate-700">{loan.vehicleNumber}</div>
+                      <div className="text-xs text-slate-400">{loan.make} {loan.vehicleModel}</div>
                     </td>
                     <td className="p-4">
-                      <div className="font-medium text-slate-700">{loan.make} {loan.vehicleModel}</div>
-                      <div className="text-xs text-slate-500">
-                        {loan.color}
-                      </div>
+                      <div className="font-bold text-primary-600">₹ {loan.emiAmount?.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">EMI</span></div>
+                      <div className="text-[10px] text-slate-500">₹ {loan.loanAmount?.toLocaleString()} Total • {loan.installments} Months</div>
                     </td>
-                    <td className="p-4 font-semibold text-slate-700">₹ {loan.loanAmount?.toLocaleString()}</td>
-                    <td className="p-4 text-slate-600">{loan.installments} months</td>
-                    <td className="p-4 font-semibold text-primary-600">₹ {loan.emiAmount?.toLocaleString()}</td>
                     <td className="p-4">
-                      <div className="relative inline-block">
-                        <select
-                          value={loan.status}
-                          disabled={changingStatus === loan._id}
-                          onChange={e => handleStatusChange(loan._id, e.target.value)}
-                          className={`appearance-none pr-6 pl-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border cursor-pointer transition-all
-                            ${STATUS_STYLES[loan.status]}
-                            ${changingStatus === loan._id ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                      <select
+                        value={loan.status}
+                        onChange={e => handleStatusChange(loan._id, e.target.value)}
+                        className={`appearance-none px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer ${STATUS_STYLES[loan.status]}`}
+                      >
+                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <Link 
+                          to={`/loans/${loan._id}/ledger`}
+                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm border border-emerald-100"
+                          title="View Payment Ledger"
                         >
-                          {STATUS_OPTIONS.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                        <ChevronDown
-                          size={10}
-                          className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 opacity-60"
-                        />
-                        {changingStatus === loan._id && (
-                          <span className="absolute -right-5 top-1/2 -translate-y-1/2">
-                            <div className="w-3 h-3 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                          </span>
+                          <TableIcon size={16} />
+                        </Link>
+                        <button 
+                          onClick={() => handleEdit(loan)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => handleDelete(loan._id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         )}
                       </div>
                     </td>

@@ -1,7 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import sln from '../api';
-import { PlusCircle, Search, ArrowUpDown, ArrowUp, ArrowDown, X, AlertCircle } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Search, 
+  ArrowUpDown, 
+  ArrowUp, 
+  ArrowDown, 
+  X, 
+  AlertCircle, 
+  Edit2, 
+  Trash2, 
+  ExternalLink 
+} from 'lucide-react';
 
 // Validation helpers
 const MOBILE_REGEX = /^[6-9]\d{9}$/;
@@ -25,6 +37,7 @@ const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   // Search / Sort state
   const [search, setSearch] = useState('');
@@ -35,6 +48,10 @@ const Customers = () => {
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
   const [address, setAddress] = useState('');
+
+  // Role check
+  const role = localStorage.getItem('role');
+  const isAdmin = role === 'admin';
 
   // Validation errors
   const [errors, setErrors] = useState({});
@@ -80,24 +97,56 @@ const Customers = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAddCustomer = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setSubmitting(true);
     try {
-      await sln.post('/customers', { name, mobile, address });
+      if (editingId) {
+        await sln.put(`/customers/${editingId}`, { name, mobile, address });
+      } else {
+        await sln.post('/customers', { name, mobile, address });
+      }
 
-      setShowForm(false);
-      setName(''); setMobile(''); setAddress('');
-      setErrors({});
+      resetForm();
       fetchCustomers();
     } catch (error) {
-      const msg = error.response?.data?.message || 'Error adding customer';
+      const msg = error.response?.data?.message || 'Error saving customer';
       alert(msg);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDelete = async (id) => {
+    if (!isAdmin) return;
+    if (!window.confirm('Are you sure you want to delete this customer? This will also delete all associated loans and payments.')) return;
+
+    try {
+      await sln.delete(`/customers/${id}`);
+      fetchCustomers();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error deleting customer');
+    }
+  };
+
+  const handleEdit = (customer) => {
+    setEditingId(customer._id);
+    setName(customer.name);
+    setMobile(customer.mobile);
+    setAddress(customer.address);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setName('');
+    setMobile('');
+    setAddress('');
+    setErrors({});
   };
 
   const handleMobileChange = (e) => {
@@ -127,22 +176,21 @@ const Customers = () => {
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
         <h1 className="text-2xl font-bold text-slate-800">{t('customers')}</h1>
         <button
-          onClick={() => { setShowForm(!showForm); setErrors({}); }}
+          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm"
         >
-          <PlusCircle size={18} className="mr-2" />
-          {t('addCustomer')}
+          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
+          {showForm ? 'Cancel' : t('addCustomer')}
         </button>
       </div>
 
-      {/* Add Customer Form */}
+      {/* Form */}
       {showForm && (
         <div className="card glass animate-in fade-in slide-in-from-top-4 duration-300">
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-4">
-            {t('addCustomer')}
+            {editingId ? 'Edit Customer' : t('addCustomer')}
           </h2>
-          <form onSubmit={handleAddCustomer} className="grid grid-cols-1 md:grid-cols-3 gap-4" noValidate>
-            {/* Name */}
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4" noValidate>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('name')}</label>
               <input
@@ -155,7 +203,6 @@ const Customers = () => {
               <FieldError msg={errors.name} />
             </div>
 
-            {/* Mobile */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('mobileNumber')}</label>
               <div className="relative">
@@ -167,18 +214,11 @@ const Customers = () => {
                   onChange={handleMobileChange}
                   placeholder="9876543210"
                   maxLength={10}
-                  inputMode="numeric"
                 />
               </div>
               <FieldError msg={errors.mobile} />
-              {!errors.mobile && mobile && (
-                <p className={`text-xs mt-1 ${mobile.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {mobile.length}/10 digits
-                </p>
-              )}
             </div>
 
-            {/* Address */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('address')}</label>
               <input
@@ -192,25 +232,20 @@ const Customers = () => {
             </div>
 
             <div className="md:col-span-3 flex justify-end gap-3 mt-2">
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setErrors({}); setName(''); setMobile(''); setAddress(''); }}
-                className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium"
-              >
+              <button type="button" onClick={resetForm} className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
                 Cancel
               </button>
-              <button type="submit" disabled={submitting} className="btn-primary w-auto py-2 px-6">
-                {submitting ? 'Saving...' : t('save')}
+              <button type="submit" disabled={submitting} className="btn-primary w-auto py-2 px-6 shadow-sm">
+                {submitting ? 'Saving...' : 'Save Customer'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Search & Sort Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
+      {/* Search & Sort */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center">
+        <div className="relative flex-1 max-w-md w-full">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -219,83 +254,82 @@ const Customers = () => {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <X size={14} />
-            </button>
-          )}
         </div>
-
-        {/* Sort controls */}
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <span className="text-slate-500 text-xs">Sort by:</span>
-          {[
-            { key: 'name', label: 'Name' },
-            { key: 'createdAt', label: 'Date' },
-            { key: 'mobile', label: 'Mobile' },
-          ].map(s => (
+        <div className="flex gap-2">
+          {['name', 'createdAt'].map(field => (
             <button
-              key={s.key}
-              onClick={() => handleSortToggle(s.key)}
-              className={`flex items-center px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors
-                ${sortBy === s.key ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}
+              key={field}
+              onClick={() => handleSortToggle(field)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-medium ${sortBy === field ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-slate-200 text-slate-600'}`}
             >
-              {s.label}
-              <SortIcon field={s.key} sortBy={sortBy} sortOrder={sortOrder} />
+              {field === 'name' ? 'Name' : 'Date'}
+              <SortIcon field={field} sortBy={sortBy} sortOrder={sortOrder} />
             </button>
           ))}
         </div>
-
-        <span className="text-xs text-slate-400 ml-auto">{customers.length} customer{customers.length !== 1 ? 's' : ''}</span>
       </div>
 
-      {/* Customers Table */}
-      <div className="card p-0 overflow-hidden">
+      {/* Table */}
+      <div className="card p-0 overflow-hidden shadow-sm border-slate-100">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-600 text-sm border-b border-slate-200">
-                <th
-                  className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
-                  onClick={() => handleSortToggle('name')}
-                >
-                  <span className="flex items-center">{t('name')} <SortIcon field="name" sortBy={sortBy} sortOrder={sortOrder} /></span>
-                </th>
-                <th
-                  className="p-4 font-medium cursor-pointer hover:text-slate-800 select-none"
-                  onClick={() => handleSortToggle('mobile')}
-                >
-                  <span className="flex items-center">{t('mobileNumber')} <SortIcon field="mobile" sortBy={sortBy} sortOrder={sortOrder} /></span>
-                </th>
-                <th className="p-4 font-medium">{t('address')}</th>
+              <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                <th className="p-4 w-16">S.No</th>
+                <th className="p-4">{t('name')}</th>
+                <th className="p-4">{t('mobileNumber')}</th>
+                <th className="p-4">{t('address')}</th>
+                <th className="p-4">Loan Nos.</th>
+                <th className="p-4 text-center">{t('actions')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="p-8 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Search size={32} className="text-slate-300" />
-                      <p className="text-slate-500">
-                        {search ? `No customers found for "${search}"` : 'No customers found. Add a new customer to get started.'}
-                      </p>
-                      {search && (
-                        <button onClick={() => setSearch('')} className="text-primary-600 text-sm underline">Clear search</button>
-                      )}
-                    </div>
-                  </td>
+                  <td colSpan="6" className="p-10 text-center text-slate-400">No customers found</td>
                 </tr>
               ) : (
-                customers.map(customer => (
-                  <tr key={customer._id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="p-4 font-medium text-slate-800">{customer.name}</td>
-                    <td className="p-4 text-slate-600">
-                      <span className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400">+91</span>
-                        {customer.mobile}
-                      </span>
+                customers.map((customer, index) => (
+                  <tr key={customer._id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="p-4 text-sm text-slate-400 font-medium">{index + 1}</td>
+                    <td className="p-4 font-bold text-slate-800">{customer.name}</td>
+                    <td className="p-4 text-sm">{customer.mobile}</td>
+                    <td className="p-4 text-sm text-slate-600 max-w-xs truncate">{customer.address}</td>
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-1">
+                        {customer.loanNumbers && customer.loanNumbers.length > 0 ? (
+                          customer.loanNumbers.map(hp => (
+                            <Link 
+                              key={hp} 
+                              to={`/loans?search=${hp}`}
+                              className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                            >
+                              {hp} <ExternalLink size={8} className="ml-1" />
+                            </Link>
+                          ))
+                        ) : (
+                          <span className="text-slate-300 text-[10px]">No active loans</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-4 text-slate-600 truncate max-w-xs">{customer.address}</td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleEdit(customer)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => handleDelete(customer._id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}

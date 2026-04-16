@@ -92,7 +92,8 @@ const createLoan = async (req, res) => {
 
     res.status(201).json(loan);
   } catch (error) {
-    res.status(500).json({ message: 'Server error creating loan' });
+    console.error('Loan Creation Error:', error);
+    res.status(500).json({ message: error.message || 'Server error creating loan' });
   }
 };
 
@@ -120,8 +121,96 @@ const updateLoanStatus = async (req, res) => {
 
     res.json(loan);
   } catch (error) {
-    console.error('updateLoanStatus error:', error.message, error.stack);
+    console.error('Update Loan Status Error:', error);
     res.status(500).json({ message: error.message || 'Server error updating loan status' });
+  }
+};
+
+// @desc    Update loan details
+// @route   PUT /api/loans/:id
+// @access  Private
+const updateLoan = async (req, res) => {
+  try {
+    const loan = await Loan.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    }).populate('customerReference', 'name mobile');
+
+    if (!loan) {
+      return res.status(404).json({ message: 'Loan not found' });
+    }
+
+    res.json(loan);
+  } catch (error) {
+    console.error('Loan Update Error:', error);
+    res.status(500).json({ message: error.message || 'Server error updating loan' });
+  }
+};
+
+// @desc    Delete loan (Admin restricted)
+// @route   DELETE /api/loans/:id
+// @access  Private
+const deleteLoan = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can delete loans' });
+    }
+
+    const loan = await Loan.findByIdAndDelete(req.params.id);
+
+    if (!loan) {
+      return res.status(404).json({ message: 'Loan not found' });
+    }
+
+    // Delete associated payments
+    await Payment.deleteMany({ loanReference: req.params.id });
+
+    res.json({ message: 'Loan and associated payments deleted successfully' });
+  } catch (error) {
+    console.error('Loan Delete Error:', error);
+    res.status(500).json({ message: error.message || 'Server error deleting loan' });
+  }
+};
+
+// @desc    Get loan payments (installments)
+// @route   GET /api/loans/:id/payments
+// @access  Private
+const getLoanPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find({ loanReference: req.params.id }).sort('installmentNumber');
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error fetching payments' });
+  }
+};
+
+// @desc    Update payment (record receipt)
+// @route   PUT /api/payments/:id
+// @access  Private
+const updatePayment = async (req, res) => {
+  const { receivedAmount, receiptNo, paymentMode, penalty, status, paidDate } = req.body;
+
+  try {
+    const payment = await Payment.findByIdAndUpdate(
+      req.params.id,
+      {
+        receivedAmount,
+        receiptNo,
+        paymentMode,
+        penalty,
+        status,
+        paidDate: paidDate || new Date(),
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    res.json(payment);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error updating payment' });
   }
 };
 
@@ -129,4 +218,8 @@ module.exports = {
   getLoans,
   createLoan,
   updateLoanStatus,
+  updateLoan,
+  deleteLoan,
+  getLoanPayments,
+  updatePayment,
 };
