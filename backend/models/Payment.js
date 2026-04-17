@@ -37,7 +37,7 @@ const paymentSchema = new mongoose.Schema(
     },
     penalty: {
       type: Number,
-      default: 0,
+      default: 900,
     },
     status: {
       type: String,

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import sln from '../api';
+import { formatDate, toInputDate } from '../utils/dateUtils';
 import { 
   PlusCircle, 
   Info, 
@@ -64,6 +65,7 @@ const Loans = () => {
   const [installments, setInstallments] = useState('');
   const [emiAmount, setEmiAmount] = useState('');
   const [emiManuallyEdited, setEmiManuallyEdited] = useState(false);
+  const [hpaDate, setHpaDate] = useState('');
 
   // Form State — Vehicle
   const [vehicleNumber, setVehicleNumber] = useState('');
@@ -138,6 +140,7 @@ const Loans = () => {
     }
     if (!make.trim()) newErrors.make = 'Make is required';
     if (!vehicleModel.trim()) newErrors.vehicleModel = 'Model is required';
+    if (!hpaDate) newErrors.hpaDate = 'HPA Date is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -146,6 +149,7 @@ const Loans = () => {
     setHpNumber(''); setCustomerRef(''); setLoanAmount(''); setInterestRate('');
     setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
     setVehicleNumber(''); setMake(''); setVehicleModel(''); setColor('');
+    setHpaDate('');
     setErrors({});
     setEditingId(null);
     setShowForm(false);
@@ -166,6 +170,7 @@ const Loans = () => {
       interestRate: Number(interestRate),
       installments: Number(installments),
       emiAmount: emiAmount !== '' ? Number(emiAmount) : Number(autoEmi),
+      hpaDate,
     };
 
     try {
@@ -208,6 +213,7 @@ const Loans = () => {
     setMake(loan.make);
     setVehicleModel(loan.vehicleModel);
     setColor(loan.color);
+    setHpaDate(toInputDate(loan.hpaDate));
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -276,6 +282,12 @@ const Loans = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('hpNumber')}</label>
                   <input type="text" className="input-field py-2"
                     value={hpNumber} onChange={e => setHpNumber(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">HPA Date</label>
+                  <input type="date" className={`input-field py-2 ${errors.hpaDate ? 'border-red-400 focus:ring-red-300' : ''}`}
+                    value={hpaDate} onChange={e => { setHpaDate(e.target.value); if (errors.hpaDate) setErrors(p => ({ ...p, hpaDate: '' })); }} required />
+                  <FieldError msg={errors.hpaDate} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('customers')}</label>
@@ -397,6 +409,7 @@ const Loans = () => {
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                 <th className="p-4">{t('hpNumber')}</th>
+                <th className="p-4">HPA Date</th>
                 <th className="p-4">{t('customers')}</th>
                 <th className="p-4">{t('vehicleNumber')}</th>
                 <th className="p-4">Loan Info</th>
@@ -412,6 +425,9 @@ const Loans = () => {
                   <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-4">
                       <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono tracking-wide">{loan.hpNumber}</span>
+                    </td>
+                    <td className="p-4">
+                      <div className="text-sm text-slate-600">{formatDate(loan.hpaDate)}</div>
                     </td>
                     <td className="p-4">
                       <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>

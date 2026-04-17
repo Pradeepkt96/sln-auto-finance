@@ -51,6 +51,9 @@ const loanSchema = new mongoose.Schema(
       enum: ['active', 'closed', 'default'],
       default: 'active',
     },
+    hpaDate: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

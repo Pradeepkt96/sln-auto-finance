@@ -566,6 +566,14 @@ body{
   -moz-osx-font-smoothing: grayscale;
 }
 
+@media print {
+  body {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+}
+
 .container{
   width: 100%;
 }
@@ -674,6 +682,14 @@ body{
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+@media print {
+  .card {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+}
+
 /* Glassmorphism for specific elements */
 
 .glass{
@@ -686,6 +702,14 @@ body{
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
   --tw-backdrop-blur: blur(12px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+@media print {
+  .glass {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
 }
 
 .absolute{
@@ -1733,6 +1757,84 @@ body{
 
 .duration-300{
   transition-duration: 300ms;
+}
+
+/* Print Styles */
+
+@media print {
+  @page {
+    margin: 1cm;
+  }
+
+  body {
+    background-color: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide navigation and UI elements during print */
+
+  nav, 
+  .no-print,
+  button,
+  .btn-primary,
+  footer {
+    display: none !important;
+  }
+
+  /* Reset container widths and colors for print */
+
+  .max-w-7xl, .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .shadow-sm, .card, .bg-white, .bg-slate-50 {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  /* Specific fix for the top/left space in LoanDue */
+
+  .space-y-6 > * + * {
+    margin-top: 0.5rem !important;
+  }
+
+  .space-y-6 {
+    padding-top: 0 !important;
+  }
+
+  /* Inputs during print */
+
+  input {
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+            appearance: none !important;
+    -moz-appearance: textfield !important;
+  }
+
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Ensure background colors are printed */
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bg-dark-bg {
+    background-color: #1a202c !important;
+    color: white !important;
+  }
 }
 
 .hover\:bg-emerald-100:hover{

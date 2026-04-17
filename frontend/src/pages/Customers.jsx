@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import sln from '../api';
+import { formatDate } from '../utils/dateUtils';
 import { 
   PlusCircle, 
   Search, 
@@ -298,13 +299,13 @@ const Customers = () => {
                     <td className="p-4">
                       <div className="flex flex-wrap gap-1">
                         {customer.loanNumbers && customer.loanNumbers.length > 0 ? (
-                          customer.loanNumbers.map(hp => (
+                          customer.loanNumbers.map((loanObj) => (
                             <Link 
-                              key={hp} 
-                              to={`/loans?search=${hp}`}
+                              key={loanObj.hpNumber} 
+                              to={`/loans?search=${loanObj.hpNumber}`}
                               className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors"
                             >
-                              {hp} <ExternalLink size={8} className="ml-1" />
+                              {loanObj.hpNumber} {loanObj.hpaDate ? `(${formatDate(loanObj.hpaDate)})` : ''} <ExternalLink size={8} className="ml-1" />
                             </Link>
                           ))
                         ) : (

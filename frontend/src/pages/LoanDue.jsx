@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import sln from '../api';
+import { formatDate, toInputDate } from '../utils/dateUtils';
 import { 
   ArrowLeft, 
   Save, 
@@ -41,11 +42,12 @@ const LoanDue = () => {
         // Initialize edit values
         const vals = {};
         paymentsRes.data.forEach(p => {
+          const isPending = p.status === 'pending';
           vals[p._id] = {
-            receivedAmount: p.receivedAmount || '',
+            receivedAmount: isPending ? p.amount : (p.receivedAmount || ''),
             receiptNo: p.receiptNo || '',
-            penalty: p.penalty || '',
-            paidDate: p.paidDate ? new Date(p.paidDate).toISOString().split('T')[0] : '',
+            penalty: isPending ? 900 : (p.penalty || 0),
+            paidDate: toInputDate(p.paidDate || (isPending ? new Date() : '')),
             status: p.status
           };
         });
@@ -185,7 +187,7 @@ const LoanDue = () => {
                     <td className="p-4">
                       <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
                         <Calendar size={12} className="text-slate-400" />
-                        {new Date(p.dueDate).toLocaleDateString()}
+                        {formatDate(p.dueDate)}
                       </div>
                     </td>
                     <td className="p-4">

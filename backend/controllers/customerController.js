@@ -33,10 +33,13 @@ const getCustomers = async (req, res) => {
     // Fetch loan numbers for each customer
     const customersWithLoans = await Promise.all(
       customers.map(async (customer) => {
-        const loans = await Loan.find({ customerReference: customer._id }, 'hpNumber');
+        const loans = await Loan.find({ customerReference: customer._id }, 'hpNumber hpaDate');
         return {
           ...customer,
-          loanNumbers: loans.map((l) => l.hpNumber),
+          loanNumbers: loans.map((l) => ({
+            hpNumber: l.hpNumber,
+            hpaDate: l.hpaDate,
+          })),
         };
       })
     );

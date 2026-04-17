@@ -11,20 +11,7 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Allow localhost, 127.0.0.1 and any vercel.app domain
-    if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin) || /\.vercel\.app$/.test(origin) || origin === 'https://sln-auto-finance.vercel.app') {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Routes

@@ -1,6 +1,10 @@
 const Loan = require('../models/Loan');
 const Payment = require('../models/Payment');
 
+const logDebug = (msg, data) => {
+  console.log(`[DEBUG] ${msg}${data ? ': ' + JSON.stringify(data) : ''}`);
+};
+
 // @desc    Get all loans (with optional search/filter)
 // @route   GET /api/loans
 // @access  Private
@@ -51,8 +55,14 @@ const createLoan = async (req, res) => {
   const {
     hpNumber, customerReference,
     vehicleNumber, make, vehicleModel, color,
-    loanAmount, interestRate, installments, emiAmount,
+    loanAmount, interestRate, installments, emiAmount, hpaDate,
   } = req.body;
+
+  logDebug('--- CREATE LOAN REQUEST ---', req.body);
+
+  if (!hpaDate) {
+    return res.status(400).json({ message: 'HPA Date is required' });
+  }
 
   // Validate vehicle number format
   const vehicleRegex = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
@@ -61,6 +71,7 @@ const createLoan = async (req, res) => {
   }
 
   try {
+    console.log('Creating loan with payload:', req.body);
     const loan = await Loan.create({
       hpNumber,
       customerReference,
@@ -72,23 +83,29 @@ const createLoan = async (req, res) => {
       interestRate,
       installments,
       emiAmount,
+      hpaDate: hpaDate ? new Date(hpaDate) : undefined,
     });
+
+    console.log('Loan created successfully:', loan._id);
 
     // Auto-generate pending payments for each installment
     const paymentDocs = [];
-    let currentDate = new Date();
+    let currentDate = new Date(hpaDate);
     for (let i = 1; i <= installments; i++) {
-      currentDate.setMonth(currentDate.getMonth() + 1);
+      let dueDate = new Date(currentDate);
+      dueDate.setMonth(dueDate.getMonth() + i);
+
       paymentDocs.push({
         loanReference: loan._id,
         installmentNumber: i,
-        dueDate: new Date(currentDate),
+        dueDate: dueDate,
         amount: emiAmount,
         status: 'pending',
       });
     }
 
     await Payment.insertMany(paymentDocs);
+    console.log('Payments generated:', paymentDocs.length);
 
     res.status(201).json(loan);
   } catch (error) {
@@ -131,16 +148,94 @@ const updateLoanStatus = async (req, res) => {
 // @access  Private
 const updateLoan = async (req, res) => {
   try {
-    const loan = await Loan.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    }).populate('customerReference', 'name mobile');
-
+    const { id } = req.params;
+    const loan = await Loan.findById(id);
     if (!loan) {
       return res.status(404).json({ message: 'Loan not found' });
     }
 
-    res.json(loan);
+    const oldHpaTime    = loan.hpaDate     ? new Date(loan.hpaDate).getTime() : 0;
+    const oldInstallments = loan.installments;
+    const oldEmiAmount  = loan.emiAmount;
+
+    // Update fields from req.body
+    const fieldsToUpdate = [
+      'hpNumber', 'customerReference', 'vehicleNumber', 'make',
+      'vehicleModel', 'color', 'loanAmount', 'interestRate',
+      'installments', 'emiAmount', 'status', 'hpaDate',
+    ];
+
+    fieldsToUpdate.forEach(field => {
+      if (req.body[field] !== undefined) {
+        if (field === 'hpaDate') {
+          if (req.body[field]) loan[field] = new Date(req.body[field]);
+        } else if (field === 'vehicleNumber') {
+          loan[field] = req.body[field].toUpperCase();
+        } else {
+          loan[field] = req.body[field];
+        }
+      }
+    });
+
+    await loan.save();
+
+    const newHpaTime         = loan.hpaDate ? new Date(loan.hpaDate).getTime() : 0;
+    const installmentsChanged = Number(loan.installments) !== Number(oldInstallments);
+    const hpaChanged          = newHpaTime !== oldHpaTime && !!loan.hpaDate;
+    const emiChanged          = Number(loan.emiAmount) !== Number(oldEmiAmount);
+
+    if (installmentsChanged && loan.hpaDate) {
+      // Installments count changed — delete unpaid payment rows and regenerate
+      await Payment.deleteMany({
+        loanReference: loan._id,
+        status: { $in: ['pending', 'overdue'] },
+      });
+
+      const paidPayments = await Payment.find({
+        loanReference: loan._id,
+        status: { $in: ['paid', 'partially_paid'] },
+      });
+      const paidNumbers = new Set(paidPayments.map(p => p.installmentNumber));
+
+      const newPaymentDocs = [];
+      const baseDate = new Date(loan.hpaDate);
+      for (let i = 1; i <= loan.installments; i++) {
+        if (paidNumbers.has(i)) continue;
+        const dueDate = new Date(baseDate);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        newPaymentDocs.push({
+          loanReference: loan._id,
+          installmentNumber: i,
+          dueDate,
+          amount: loan.emiAmount,
+          status: 'pending',
+        });
+      }
+      if (newPaymentDocs.length > 0) await Payment.insertMany(newPaymentDocs);
+
+    } else if (hpaChanged || emiChanged) {
+      // Update due dates and/or emi amount on all unpaid (pending + overdue) payments
+      const unpaidPayments = await Payment.find({
+        loanReference: loan._id,
+        status: { $in: ['pending', 'overdue'] },
+      });
+
+      const updatePromises = unpaidPayments.map(p => {
+        const updateFields = {};
+        if (hpaChanged) {
+          const resetDate = new Date(loan.hpaDate);
+          resetDate.setMonth(resetDate.getMonth() + p.installmentNumber);
+          updateFields.dueDate = resetDate;
+        }
+        if (emiChanged) updateFields.amount = loan.emiAmount;
+        return Payment.findByIdAndUpdate(p._id, updateFields);
+      });
+
+      await Promise.all(updatePromises);
+    }
+
+    const updatedLoan = await Loan.findById(loan._id).populate('customerReference', 'name mobile');
+    res.json(updatedLoan);
   } catch (error) {
     console.error('Loan Update Error:', error);
     res.status(500).json({ message: error.message || 'Server error updating loan' });
