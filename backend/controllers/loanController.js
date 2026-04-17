@@ -309,6 +309,43 @@ const updatePayment = async (req, res) => {
   }
 };
 
+// @desc    Recalculate all unpaid payment due dates from a given first due date
+// @route   PUT /api/loans/:id/recalculate-dues
+// @access  Private
+const recalculateDueDates = async (req, res) => {
+  try {
+    const { firstDueDate } = req.body;
+    if (!firstDueDate) return res.status(400).json({ message: 'firstDueDate is required' });
+
+    const baseDate = new Date(firstDueDate);
+    if (isNaN(baseDate.getTime())) return res.status(400).json({ message: 'Invalid firstDueDate' });
+
+    // All unpaid payments sorted by installment number
+    const unpaidPayments = await Payment.find({
+      loanReference: req.params.id,
+      status: { $in: ['pending', 'overdue'] },
+    }).sort({ installmentNumber: 1 });
+
+    if (unpaidPayments.length === 0) {
+      return res.json([]);
+    }
+
+    const updatePromises = unpaidPayments.map((p, idx) => {
+      const dueDate = new Date(baseDate);
+      dueDate.setMonth(baseDate.getMonth() + idx); // 0-based offset per slot
+      return Payment.findByIdAndUpdate(p._id, { dueDate }, { new: true });
+    });
+
+    await Promise.all(updatePromises);
+
+    const allPayments = await Payment.find({ loanReference: req.params.id }).sort({ installmentNumber: 1 });
+    res.json(allPayments);
+  } catch (error) {
+    console.error('Recalculate Due Dates Error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
 module.exports = {
   getLoans,
   createLoan,
@@ -317,4 +354,5 @@ module.exports = {
   deleteLoan,
   getLoanPayments,
   updatePayment,
+  recalculateDueDates,
 };

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import sln from '../api';
-import { formatDate, toInputDate } from '../utils/dateUtils';
+import { formatDate, toDisplayInputDate, parseDisplayDate } from '../utils/dateUtils';
 import { 
   PlusCircle, 
   Info, 
@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  Table as TableIcon
+  Table as TableIcon,
+  CalendarDays,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = ['active', 'closed', 'default'];
@@ -66,6 +67,7 @@ const Loans = () => {
   const [emiAmount, setEmiAmount] = useState('');
   const [emiManuallyEdited, setEmiManuallyEdited] = useState(false);
   const [hpaDate, setHpaDate] = useState('');
+  const hpaDatePickerRef = useRef(null);
 
   // Form State — Vehicle
   const [vehicleNumber, setVehicleNumber] = useState('');
@@ -140,7 +142,11 @@ const Loans = () => {
     }
     if (!make.trim()) newErrors.make = 'Make is required';
     if (!vehicleModel.trim()) newErrors.vehicleModel = 'Model is required';
-    if (!hpaDate) newErrors.hpaDate = 'HPA Date is required';
+    if (!hpaDate) {
+      newErrors.hpaDate = 'HPA Date is required';
+    } else if (!parseDisplayDate(hpaDate)) {
+      newErrors.hpaDate = 'Enter a valid date (dd/mm/yyyy)';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -159,6 +165,7 @@ const Loans = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    const isoHpaDate = parseDisplayDate(hpaDate); // convert dd/mm/yyyy → yyyy-mm-dd
     const payload = {
       hpNumber,
       customerReference: customerRef,
@@ -170,7 +177,7 @@ const Loans = () => {
       interestRate: Number(interestRate),
       installments: Number(installments),
       emiAmount: emiAmount !== '' ? Number(emiAmount) : Number(autoEmi),
-      hpaDate,
+      hpaDate: isoHpaDate,
     };
 
     try {
@@ -213,7 +220,7 @@ const Loans = () => {
     setMake(loan.make);
     setVehicleModel(loan.vehicleModel);
     setColor(loan.color);
-    setHpaDate(toInputDate(loan.hpaDate));
+    setHpaDate(toDisplayInputDate(loan.hpaDate));
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -242,6 +249,17 @@ const Loans = () => {
     const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
     setVehicleNumber(val);
     if (errors.vehicleNumber) setErrors(p => ({ ...p, vehicleNumber: '' }));
+  };
+
+  // Auto-insert slashes to keep dd/mm/yyyy format as the user types
+  const handleHpaDateChange = (e) => {
+    let raw = e.target.value.replace(/[^0-9]/g, ''); // digits only
+    if (raw.length > 8) raw = raw.slice(0, 8);
+    let formatted = raw;
+    if (raw.length > 4) formatted = raw.slice(0, 2) + '/' + raw.slice(2, 4) + '/' + raw.slice(4);
+    else if (raw.length > 2) formatted = raw.slice(0, 2) + '/' + raw.slice(2);
+    setHpaDate(formatted);
+    if (errors.hpaDate) setErrors(p => ({ ...p, hpaDate: '' }));
   };
 
   if (loading) {
@@ -285,8 +303,38 @@ const Loans = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">HPA Date</label>
-                  <input type="date" className={`input-field py-2 ${errors.hpaDate ? 'border-red-400 focus:ring-red-300' : ''}`}
-                    value={hpaDate} onChange={e => { setHpaDate(e.target.value); if (errors.hpaDate) setErrors(p => ({ ...p, hpaDate: '' })); }} required />
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="dd/mm/yyyy"
+                      maxLength={10}
+                      className={`input-field py-2 font-mono tracking-wider flex-1 ${errors.hpaDate ? 'border-red-400 focus:ring-red-300' : ''}`}
+                      value={hpaDate}
+                      onChange={handleHpaDateChange}
+                    />
+                    {/* Hidden native date picker triggered by calendar icon */}
+                    <input
+                      type="date"
+                      ref={hpaDatePickerRef}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
+                      tabIndex={-1}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setHpaDate(toDisplayInputDate(new Date(e.target.value + 'T00:00:00')));
+                          if (errors.hpaDate) setErrors(p => ({ ...p, hpaDate: '' }));
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      title="Pick from calendar"
+                      onClick={() => { try { hpaDatePickerRef.current?.showPicker(); } catch { hpaDatePickerRef.current?.click(); } }}
+                      className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300 hover:bg-primary-50 transition-all"
+                    >
+                      <CalendarDays size={16} />
+                    </button>
+                  </div>
                   <FieldError msg={errors.hpaDate} />
                 </div>
                 <div>
