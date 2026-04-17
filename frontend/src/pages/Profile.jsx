@@ -1,14 +1,19 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, LogOut, Phone, Shield } from 'lucide-react';
+import { User, Lock, LogOut, Phone, Shield, Save, Edit2 } from 'lucide-react';
+import sln from '../api';
 
 const Profile = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const [username, setUsername] = useState(localStorage.getItem('username') || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const mobile = localStorage.getItem('mobile');
   const role = localStorage.getItem('role');
-  const name = localStorage.getItem('username') || 'User';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -18,21 +23,70 @@ const Profile = () => {
     navigate('/login');
   };
 
+  const handleUpdateProfile = async () => {
+    setSaving(true);
+    try {
+      const { data } = await sln.put('/auth/profile', { username });
+      localStorage.setItem('username', data.username);
+      setIsEditing(false);
+      alert('Profile updated successfully!');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h1 className="text-2xl font-bold text-slate-800">{t('profile')}</h1>
-      </div>
+    <div className="max-w-2xl mx-auto space-y-4">
 
       <div className="card glass p-8">
         <div className="flex flex-col items-center mb-8">
           <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 mb-4 border-4 border-white shadow-sm">
             <User size={48} />
           </div>
-          <h2 className="text-xl font-bold text-slate-800">{name}</h2>
-          <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase mt-2 tracking-wider">
-            {role}
-          </span>
+          
+          {isEditing ? (
+            <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+              <input
+                type="text"
+                className="input-field py-2 text-center text-lg font-bold"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUpdateProfile}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-all shadow-sm"
+                >
+                  <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => { setIsEditing(false); setUsername(localStorage.getItem('username') || ''); }}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-all shadow-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 group">
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">{username || 'User'}</h2>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="p-1 rounded-md text-slate-300 hover:text-primary-500 hover:bg-primary-50 transition-all"
+                >
+                  <Edit2 size={14} />
+                </button>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase mt-2 tracking-widest">
+                {role}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">

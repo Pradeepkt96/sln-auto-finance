@@ -10,6 +10,10 @@ const customerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    altMobile: {
+      type: String,
+      required: false,
+    },
     address: {
       type: String,
       required: true,

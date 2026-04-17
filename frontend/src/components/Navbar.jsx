@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Globe, Menu, X, Calculator, Users, FileText, LayoutDashboard, Lock } from 'lucide-react';
+import { LogOut, Globe, Menu, X, Calculator, Users, FileText, LayoutDashboard, Lock, UserCircle } from 'lucide-react';
 import { useState } from 'react';
 
 const Navbar = () => {
@@ -27,10 +27,10 @@ const Navbar = () => {
 
   const navLinks = [
     { name: t('dashboard'), path: '/dashboard', icon: LayoutDashboard },
-    { name: t('emiCalculator'), path: '/emi-calculator', icon: LayoutDashboard }, // using placeholder
+    { name: t('emiCalculator'), path: '/emi-calculator', icon: Calculator },
     { name: t('customers'), path: '/customers', icon: Users },
     { name: t('loans'), path: '/loans', icon: FileText },
-    { name: t('profile'), path: '/profile', icon: Users }, // will use Users as placeholder or separate User icon if available
+    { name: t('profile'), path: '/profile', icon: UserCircle },
   ];
 
   if (!token) return null; // Don't show navbar on login/register if not logged in
@@ -38,7 +38,7 @@ const Navbar = () => {
   return (
     <nav className="bg-dark-bg text-dark-text shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-14">
           <div className="flex items-center space-x-2">
             <span className="text-xl font-bold bg-gradient-to-r from-primary-400 to-teal-200 bg-clip-text text-transparent">
               {t('appName')}
@@ -46,7 +46,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-1">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
@@ -54,12 +54,14 @@ const Navbar = () => {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center space-x-1 transition-colors hover:text-primary-400 ${
-                    isActive ? 'text-primary-500 font-semibold' : 'text-slate-300'
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 group ${
+                    isActive 
+                      ? 'bg-primary-500/15 text-primary-400 font-bold shadow-sm border border-primary-500/20' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >
-                  <Icon size={18} />
-                  <span>{link.name}</span>
+                  <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                  <span className="text-sm tracking-wide">{link.name}</span>
                 </Link>
               );
             })}

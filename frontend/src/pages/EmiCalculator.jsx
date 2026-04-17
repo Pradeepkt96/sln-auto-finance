@@ -5,7 +5,7 @@ import { Calculator } from 'lucide-react';
 const EmiCalculator = () => {
   const { t } = useTranslation();
   const [loanAmount, setLoanAmount] = useState('');
-  const [interestRate, setInterestRate] = useState('');
+  const [interestRate, setInterestRate] = useState('2');
   const [installments, setInstallments] = useState('');
   const [emi, setEmi] = useState(null);
   const [handAmount, setHandAmount] = useState(null);
@@ -32,13 +32,7 @@ const EmiCalculator = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-          <Calculator className="mr-3 text-primary-500" size={28} />
-          {t('emiCalculator')}
-        </h1>
-      </div>
+    <div className="max-w-3xl mx-auto space-y-4">
 
       <div className="card glass p-8">
         <form onSubmit={calculateEMI} className="space-y-6">

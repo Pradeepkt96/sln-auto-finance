@@ -81,6 +81,8 @@ const LoanDue = () => {
             receiptNo      : p.receiptNo || '',
             penalty        : p.penalty || 900,
             penaltyEnabled : !isPending && !isOverdue ? !!(p.penalty) : false,
+            collectionCharges: p.collectionCharges || 1500,
+            collectionChargesEnabled: p.collectionChargesEnabled || false,
             // Empty for never-saved pending rows; pre-fill for paid/partial rows
             paidDate       : (isPending || isOverdue) && !wasRecorded
                                ? ''
@@ -171,6 +173,8 @@ const LoanDue = () => {
         paidDate      : paidDateISO,
         receivedAmount: recAmount,
         penalty       : vals.penaltyEnabled ? (parseFloat(vals.penalty) || 0) : 0,
+        collectionCharges: vals.collectionChargesEnabled ? (parseFloat(vals.collectionCharges) || 0) : 0,
+        collectionChargesEnabled: vals.collectionChargesEnabled,
         status        : newStatus,
       });
 
@@ -227,7 +231,7 @@ const LoanDue = () => {
 
   // ─── render ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 max-w-7xl mx-auto">
 
       {/* ── Hidden single date pickers ── */}
       <input
@@ -254,16 +258,16 @@ const LoanDue = () => {
         }}
       />
 
-      {/* ── Header (includes First Due Date in the middle) ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      {/* ── Header (HP+Customer Left, Cascade Centre, Stats Right) ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        
         {/* Left — title + loan info */}
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/loans')} className="p-2 rounded-full hover:bg-slate-50 text-slate-400 transition-colors">
-            <ArrowLeft size={20} />
+          <button onClick={() => navigate('/loans')} className="p-2 rounded-full hover:bg-slate-50 text-slate-400 transition-colors shadow-sm">
+            <ArrowLeft size={18} />
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{t('loanDue')} Tracking</h1>
-            <p className="text-slate-500 text-sm font-medium">
+          <div className="border-l border-slate-100 pl-4">
+            <p className="text-slate-500 text-xs font-medium">
               HP No: <span className="text-slate-800 font-bold">{loan.hpNumber}</span> •{' '}
               Customer: <span className="text-slate-800 font-bold">{loan.customerReference?.name}</span>
             </p>
@@ -271,8 +275,8 @@ const LoanDue = () => {
         </div>
 
         {/* Centre — First Due Date cascade */}
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        <div className="flex flex-col items-center gap-1 bg-slate-50/50 px-4 py-1.5 rounded-xl border border-slate-100/50">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
             First Due Date <span className="text-slate-300 normal-case font-normal">(cascades all pending)</span>
           </p>
           <div className="flex items-center gap-1.5">
@@ -283,25 +287,25 @@ const LoanDue = () => {
               maxLength={10}
               value={firstDueDate}
               onChange={(e) => handleFirstDueDateChange(e.target.value)}
-              className="w-36 px-3 py-2 text-sm font-mono tracking-wider rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-all"
+              className="w-28 px-2 py-1 text-xs font-mono tracking-wider rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
             />
             <button
               type="button"
               title="Pick from calendar"
               onClick={openDueDatePicker}
-              className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300 hover:bg-primary-50 transition-all"
+              className="p-1 rounded-lg border border-slate-200 text-slate-400 hover:text-primary-600 hover:border-primary-300 hover:bg-white transition-all shadow-sm"
             >
-              <CalendarDays size={16} />
+              <CalendarDays size={13} />
             </button>
             {dueDatesModified && (
               <button
                 onClick={handleSaveDueDates}
                 disabled={savingDues}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500 text-white text-xs font-semibold hover:bg-primary-600 transition-all disabled:opacity-50 shadow-sm"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-500 text-white text-[9px] font-bold hover:bg-rose-600 transition-all disabled:opacity-50 shadow-sm"
               >
                 {savingDues
-                  ? <><RefreshCw size={13} className="animate-spin" /> Saving…</>
-                  : <><Save size={13} /> Save Due Dates</>
+                  ? <><RefreshCw size={10} className="animate-spin" /> Saving…</>
+                  : <><Save size={10} /> Save Dues</>
                 }
               </button>
             )}
@@ -309,14 +313,14 @@ const LoanDue = () => {
         </div>
 
         {/* Right — EMI + Installments stats */}
-        <div className="flex gap-4">
-          <div className="bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('emiAmount')}</p>
-            <p className="text-lg font-bold text-primary-600">₹ {loan.emiAmount?.toLocaleString()}</p>
+        <div className="flex gap-3">
+          <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[90px]">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">{t('emiAmount')}</p>
+            <p className="text-base font-bold text-primary-600 leading-tight">₹ {loan.emiAmount?.toLocaleString()}</p>
           </div>
-          <div className="bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('installments')}</p>
-            <p className="text-lg font-bold text-slate-800">{loan.installments}</p>
+          <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[90px]">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">{t('installments')}</p>
+            <p className="text-base font-bold text-slate-800 leading-tight">{loan.installments}</p>
           </div>
         </div>
       </div>
@@ -333,8 +337,8 @@ const LoanDue = () => {
                 <th className="p-4">{t('receivedAmount')}</th>
                 <th className="p-4">{t('dateOfReceipt')}</th>
                 <th className="p-4">{t('receiptNo')}</th>
-                <th className="p-4">{t('penalty')}</th>
-                <th className="p-4">{t('balanceAmount')}</th>
+                <th className="p-4 text-center">{t('penalty')}</th>
+                <th className="p-4 text-center">{t('collectionCharges')}</th>
                 <th className="p-4 text-center">Save</th>
               </tr>
             </thead>
@@ -356,7 +360,7 @@ const LoanDue = () => {
 
                     {/* Due Amount */}
                     <td className="p-4">
-                      <div className="font-bold text-slate-700">₹ {p.amount.toLocaleString()}</div>
+                      <div className="font-bold text-slate-700">{p.amount.toLocaleString()}</div>
                     </td>
 
                     {/* Due Date — shows local cascade value */}
@@ -448,10 +452,33 @@ const LoanDue = () => {
                       </div>
                     </td>
 
-                    {/* Balance */}
+                    {/* Collection Charges toggle + amount */}
                     <td className="p-4">
-                      <div className={`text-sm font-bold ${balance > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
-                        ₹ {balance.toLocaleString()}
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          title={ev.collectionChargesEnabled ? 'Disable collection charges' : 'Enable collection charges'}
+                          onClick={() => setField(p._id, 'collectionChargesEnabled', !ev.collectionChargesEnabled)}
+                          className={`p-1.5 rounded-md border transition-all ${
+                            ev.collectionChargesEnabled
+                              ? 'bg-rose-50 border-rose-300 text-rose-600 hover:bg-rose-100'
+                              : 'border-slate-200 text-slate-300 hover:text-rose-500 hover:border-rose-300'
+                          }`}
+                        >
+                          {ev.collectionChargesEnabled ? <BellRing size={13} /> : <BellOff size={13} />}
+                        </button>
+                        {ev.collectionChargesEnabled && (
+                          <input
+                            type="number"
+                            className="w-20 px-2 py-1.5 text-sm rounded-lg border border-rose-200 focus:ring-1 focus:ring-rose-400 transition-all font-bold text-rose-600"
+                            value={ev.collectionCharges ?? 1500}
+                            onChange={(e) => setField(p._id, 'collectionCharges', e.target.value)}
+                            placeholder="1500"
+                          />
+                        )}
+                        {!ev.collectionChargesEnabled && (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
                       </div>
                     </td>
 

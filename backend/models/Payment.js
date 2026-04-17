@@ -39,6 +39,14 @@ const paymentSchema = new mongoose.Schema(
       type: Number,
       default: 900,
     },
+    collectionCharges: {
+      type: Number,
+      default: 1500,
+    },
+    collectionChargesEnabled: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ['pending', 'paid', 'overdue', 'partially_paid'],

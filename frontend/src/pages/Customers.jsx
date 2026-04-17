@@ -48,6 +48,7 @@ const Customers = () => {
   // Form State
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [altMobile, setAltMobile] = useState('');
   const [address, setAddress] = useState('');
 
   // Role check
@@ -93,6 +94,9 @@ const Customers = () => {
     if (!name.trim()) newErrors.name = 'Name is required';
     const mErr = validateMobile(mobile);
     if (mErr) newErrors.mobile = mErr;
+    if (altMobile && !MOBILE_REGEX.test(altMobile)) {
+      newErrors.altMobile = 'Must be a 10-digit Indian number';
+    }
     if (!address.trim()) newErrors.address = 'Address is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -105,9 +109,9 @@ const Customers = () => {
     setSubmitting(true);
     try {
       if (editingId) {
-        await sln.put(`/customers/${editingId}`, { name, mobile, address });
+        await sln.put(`/customers/${editingId}`, { name, mobile, altMobile, address });
       } else {
-        await sln.post('/customers', { name, mobile, address });
+        await sln.post('/customers', { name, mobile, altMobile, address });
       }
 
       resetForm();
@@ -136,6 +140,7 @@ const Customers = () => {
     setEditingId(customer._id);
     setName(customer.name);
     setMobile(customer.mobile);
+    setAltMobile(customer.altMobile || '');
     setAddress(customer.address);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -146,6 +151,7 @@ const Customers = () => {
     setEditingId(null);
     setName('');
     setMobile('');
+    setAltMobile('');
     setAddress('');
     setErrors({});
   };
@@ -172,18 +178,8 @@ const Customers = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <h1 className="text-2xl font-bold text-slate-800">{t('customers')}</h1>
-        <button
-          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
-          className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm"
-        >
-          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
-          {showForm ? 'Cancel' : t('addCustomer')}
-        </button>
-      </div>
+    <div className="space-y-4">
+      {/* Form */}
 
       {/* Form */}
       {showForm && (
@@ -221,6 +217,22 @@ const Customers = () => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Alt Mobile (Optional)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium">+91</span>
+                <input
+                  type="tel"
+                  className={`input-field py-2 pl-10 ${errors.altMobile ? 'border-red-400 focus:ring-red-300' : ''}`}
+                  value={altMobile}
+                  onChange={(e) => setAltMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="Optional"
+                  maxLength={10}
+                />
+              </div>
+              <FieldError msg={errors.altMobile} />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('address')}</label>
               <input
                 type="text"
@@ -244,7 +256,7 @@ const Customers = () => {
         </div>
       )}
 
-      {/* Search & Sort */}
+      {/* Actions Row */}
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         <div className="relative flex-1 max-w-md w-full">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -256,18 +268,14 @@ const Customers = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          {['name', 'createdAt'].map(field => (
-            <button
-              key={field}
-              onClick={() => handleSortToggle(field)}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-medium ${sortBy === field ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-slate-200 text-slate-600'}`}
-            >
-              {field === 'name' ? 'Name' : 'Date'}
-              <SortIcon field={field} sortBy={sortBy} sortOrder={sortOrder} />
-            </button>
-          ))}
-        </div>
+        
+        <button
+          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
+          className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10 ml-auto"
+        >
+          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
+          {showForm ? 'Cancel' : t('addCustomer')}
+        </button>
       </div>
 
       {/* Table */}
@@ -276,11 +284,35 @@ const Customers = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                <th className="p-4 w-16">S.No</th>
-                <th className="p-4">{t('name')}</th>
+                <th 
+                  className="p-4 w-20 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('createdAt')}
+                >
+                  <div className="flex items-center">
+                    Sl. no
+                    <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
+                <th 
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('name')}
+                >
+                  <div className="flex items-center">
+                    {t('name')}
+                    <SortIcon field="name" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
                 <th className="p-4">{t('mobileNumber')}</th>
                 <th className="p-4">{t('address')}</th>
-                <th className="p-4">Loan Nos.</th>
+                <th 
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('createdAt')}
+                >
+                  <div className="flex items-center">
+                    Loan Nos.
+                    <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
                 <th className="p-4 text-center">{t('actions')}</th>
               </tr>
             </thead>
@@ -294,7 +326,12 @@ const Customers = () => {
                   <tr key={customer._id} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-4 text-sm text-slate-400 font-medium">{index + 1}</td>
                     <td className="p-4 font-bold text-slate-800">{customer.name}</td>
-                    <td className="p-4 text-sm">{customer.mobile}</td>
+                    <td className="p-4 text-sm">
+                      <div>{customer.mobile}</div>
+                      {customer.altMobile && (
+                        <div className="text-[10px] text-slate-400 font-medium">Alt: {customer.altMobile}</div>
+                      )}
+                    </td>
                     <td className="p-4 text-sm text-slate-600 max-w-xs truncate">{customer.address}</td>
                     <td className="p-4">
                       <div className="flex flex-wrap gap-1">

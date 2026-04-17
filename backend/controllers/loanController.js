@@ -15,19 +15,34 @@ const getLoans = async (req, res) => {
     let query = {};
 
     // Status filter
-    if (status && ['active', 'closed', 'default'].includes(status)) {
+    if (status && ['active', 'closed', 'reloan', 'collection'].includes(status)) {
       query.status = status;
     }
 
     // Build sort object
     const sort = {};
-    const allowedSortFields = ['loanAmount', 'emiAmount', 'installments', 'createdAt'];
-    const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    sort[field] = sortOrder === 'asc' ? 1 : -1;
-
+    const allowedSortFields = ['loanAmount', 'emiAmount', 'installments', 'createdAt', 'hpNumber', 'hpaDate', 'status'];
+    const isSpecialSort = sortBy === 'customerReference';
+    
+    // Default sorting in DB for standard fields
+    if (!isSpecialSort) {
+      const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+      sort[field] = sortOrder === 'asc' ? 1 : -1;
+    }
+    
     let loans = await Loan.find(query)
       .populate('customerReference', 'name mobile')
       .sort(sort);
+
+    // Handle special sorting (e.g. by customer name)
+    if (isSpecialSort) {
+      loans.sort((a, b) => {
+        const valA = a.customerReference?.name?.toLowerCase() || '';
+        const valB = b.customerReference?.name?.toLowerCase() || '';
+        if (sortOrder === 'asc') return valA.localeCompare(valB);
+        return valB.localeCompare(valA);
+      });
+    }
 
     // Search by HP number, vehicle number, make, model, or customer name/mobile (post-populate)
     if (search && search.trim()) {
@@ -119,7 +134,7 @@ const createLoan = async (req, res) => {
 // @access  Private
 const updateLoanStatus = async (req, res) => {
   const { status } = req.body;
-  const allowedStatuses = ['active', 'closed', 'default'];
+  const allowedStatuses = ['active', 'closed', 'reloan', 'collection'];
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ message: 'Invalid status value' });
@@ -283,7 +298,7 @@ const getLoanPayments = async (req, res) => {
 // @route   PUT /api/payments/:id
 // @access  Private
 const updatePayment = async (req, res) => {
-  const { receivedAmount, receiptNo, paymentMode, penalty, status, paidDate } = req.body;
+  const { receivedAmount, receiptNo, paymentMode, penalty, collectionCharges, collectionChargesEnabled, status, paidDate } = req.body;
 
   try {
     const payment = await Payment.findByIdAndUpdate(
@@ -293,6 +308,8 @@ const updatePayment = async (req, res) => {
         receiptNo,
         paymentMode,
         penalty,
+        collectionCharges,
+        collectionChargesEnabled,
         status,
         paidDate: paidDate || new Date(),
       },
@@ -327,7 +344,8 @@ const recalculateDueDates = async (req, res) => {
     }).sort({ installmentNumber: 1 });
 
     if (unpaidPayments.length === 0) {
-      return res.json([]);
+      const allPayments = await Payment.find({ loanReference: req.params.id }).sort({ installmentNumber: 1 });
+      return res.json(allPayments);
     }
 
     const updatePromises = unpaidPayments.map((p, idx) => {

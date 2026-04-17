@@ -3,28 +3,33 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import sln from '../api';
 import { formatDate, toDisplayInputDate, parseDisplayDate } from '../utils/dateUtils';
-import { 
-  PlusCircle, 
-  Info, 
-  Search, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
-  X, 
-  ChevronDown, 
+import {
+  PlusCircle,
+  Info,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  X,
+  Table as TableIcon,
+  CalendarDays,
+  CheckCircle2,
+  XCircle,
+  RefreshCcw,
+  Bell,
+  ChevronDown as ChevronDownIcon,
   AlertCircle,
   Edit2,
   Trash2,
-  Table as TableIcon,
-  CalendarDays,
 } from 'lucide-react';
 
-const STATUS_OPTIONS = ['active', 'closed', 'default'];
+const STATUS_OPTIONS = ['active', 'closed', 'reloan', 'collection'];
 
 const STATUS_STYLES = {
-  active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  closed: 'bg-red-100     text-red-700     border-red-200',
-  default: 'bg-white       text-slate-600   border-slate-300',
+  active: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: <CheckCircle2 size={12} />, label: 'Active' },
+  closed: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: <XCircle size={12} />, label: 'Closed' },
+  reloan: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: <RefreshCcw size={12} />, label: 'Reloan' },
+  collection: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: <Bell size={12} />, label: 'Collection' },
 };
 
 const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
@@ -53,6 +58,19 @@ const Loans = () => {
 
   // Inline status change
   const [changingStatus, setChangingStatus] = useState(null);
+  const [activePickerId, setActivePickerId] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setActivePickerId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // Profile info
   const role = localStorage.getItem('role');
@@ -62,7 +80,7 @@ const Loans = () => {
   const [hpNumber, setHpNumber] = useState('');
   const [customerRef, setCustomerRef] = useState('');
   const [loanAmount, setLoanAmount] = useState('');
-  const [interestRate, setInterestRate] = useState('');
+  const [interestRate, setInterestRate] = useState('2');
   const [installments, setInstallments] = useState('');
   const [emiAmount, setEmiAmount] = useState('');
   const [emiManuallyEdited, setEmiManuallyEdited] = useState(false);
@@ -152,7 +170,7 @@ const Loans = () => {
   };
 
   const resetForm = () => {
-    setHpNumber(''); setCustomerRef(''); setLoanAmount(''); setInterestRate('');
+    setHpNumber(''); setCustomerRef(''); setLoanAmount(''); setInterestRate('2');
     setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
     setVehicleNumber(''); setMake(''); setVehicleModel(''); setColor('');
     setHpaDate('');
@@ -262,6 +280,16 @@ const Loans = () => {
     if (errors.hpaDate) setErrors(p => ({ ...p, hpaDate: '' }));
   };
 
+  // Auto-insert slashes for mm/yyyy
+  const handleModelChange = (e) => {
+    let raw = e.target.value.replace(/[^0-9]/g, '');
+    if (raw.length > 6) raw = raw.slice(0, 6);
+    let formatted = raw;
+    if (raw.length > 2) formatted = raw.slice(0, 2) + '/' + raw.slice(2);
+    setVehicleModel(formatted);
+    if (errors.vehicleModel) setErrors(p => ({ ...p, vehicleModel: '' }));
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center p-10">
@@ -271,18 +299,8 @@ const Loans = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <h1 className="text-2xl font-bold text-slate-800">{t('loans')}</h1>
-        <button
-          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
-          className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm"
-        >
-          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
-          {showForm ? 'Cancel' : t('createLoan')}
-        </button>
-      </div>
+    <div className="space-y-4">
+      {/* Form */}
 
       {/* Form */}
       {showForm && (
@@ -405,10 +423,12 @@ const Loans = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleModel')}</label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     className={`input-field py-2 ${errors.vehicleModel ? 'border-red-400 focus:ring-red-300' : ''}`}
                     value={vehicleModel}
-                    onChange={e => { setVehicleModel(e.target.value); if (errors.vehicleModel) setErrors(p => ({ ...p, vehicleModel: '' })); }}
-                    placeholder="e.g. 01/2026"
+                    onChange={handleModelChange}
+                    placeholder="mm/yyyy"
+                    maxLength={7}
                   />
                   <FieldError msg={errors.vehicleModel} />
                 </div>
@@ -427,7 +447,7 @@ const Loans = () => {
         </div>
       )}
 
-      {/* Search & Filter */}
+      {/* Search & Filter & Create */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
         <div className="relative flex-1 min-w-[220px] max-w-md w-full">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -440,14 +460,13 @@ const Loans = () => {
           />
         </div>
 
-        <select
-          className="input-field py-2 pr-8 text-sm bg-white cursor-pointer w-auto"
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
+        <button
+          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
+          className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10 ml-auto"
         >
-          <option value="">All Statuses</option>
-          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
+          {showForm ? 'Cancel' : t('createLoan')}
+        </button>
       </div>
 
       {/* Loans Table */}
@@ -456,12 +475,52 @@ const Loans = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                <th className="p-4">{t('hpNumber')}</th>
-                <th className="p-4">HPA Date</th>
-                <th className="p-4">{t('customers')}</th>
+                <th
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('hpNumber')}
+                >
+                  <div className="flex items-center">
+                    {t('hpNumber')}
+                    <SortIcon field="hpNumber" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
+                <th
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('hpaDate')}
+                >
+                  <div className="flex items-center">
+                    HPA Date
+                    <SortIcon field="hpaDate" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
+                <th
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('customerReference')}
+                >
+                  <div className="flex items-center">
+                    {t('customers')}
+                    <SortIcon field="customerReference" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
                 <th className="p-4">{t('vehicleNumber')}</th>
-                <th className="p-4">Loan Info</th>
-                <th className="p-4">{t('status')}</th>
+                <th
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('loanAmount')}
+                >
+                  <div className="flex items-center">
+                    Loan Info
+                    <SortIcon field="loanAmount" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
+                <th
+                  className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
+                  onClick={() => handleSortToggle('status')}
+                >
+                  <div className="flex items-center">
+                    {t('status')}
+                    <SortIcon field="status" sortBy={sortBy} sortOrder={sortOrder} />
+                  </div>
+                </th>
                 <th className="p-4 text-center">{t('actions')}</th>
               </tr>
             </thead>
@@ -489,32 +548,64 @@ const Loans = () => {
                       <div className="font-bold text-primary-600">₹ {loan.emiAmount?.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">EMI</span></div>
                       <div className="text-[10px] text-slate-500">₹ {loan.loanAmount?.toLocaleString()} Total • {loan.installments} Months</div>
                     </td>
-                    <td className="p-4">
-                      <select
-                        value={loan.status}
-                        onChange={e => handleStatusChange(loan._id, e.target.value)}
-                        className={`appearance-none px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border cursor-pointer ${STATUS_STYLES[loan.status]}`}
-                      >
-                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                    <td className="p-4 relative" ref={activePickerId === loan._id ? dropdownRef : null}>
+                      {
+                        (()=>{
+                          const style = STATUS_STYLES[loan.status] || STATUS_STYLES.active;
+                          return (
+                            <button
+                              onClick={() => setActivePickerId(activePickerId === loan._id ? null : loan._id)}
+                              disabled={changingStatus === loan._id}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all shadow-sm
+                                ${style.bg} ${style.text} ${style.border}
+                                hover:shadow-md active:scale-95 disabled:opacity-50
+                              `}
+                            >
+                              {style.icon}
+                              <span>{loan.status || 'unknown'}</span>
+                              <ChevronDownIcon size={12} className={`transition-transform duration-200 ${activePickerId === loan._id ? 'rotate-180' : ''}`} />
+                            </button>
+                          );
+                        })()
+                      }
+
+                      {activePickerId === loan._id && (
+                        <div className="absolute top-12 left-4 z-[100] w-40 bg-white rounded-xl shadow-xl border border-slate-100 p-1 animate-in fade-in zoom-in-95 duration-150">
+                          {STATUS_OPTIONS.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => {
+                                handleStatusChange(loan._id, s);
+                                setActivePickerId(null);
+                              }}
+                              className={`flex items-center gap-3 w-full px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-colors
+                                ${loan.status === s ? 'bg-slate-50 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}
+                              `}
+                            >
+                              <span className={STATUS_STYLES[s].text}>{STATUS_STYLES[s].icon}</span>
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
-                        <Link 
+                        <Link
                           to={`/loans/${loan._id}/ledger`}
                           className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm border border-emerald-100"
                           title="View Payment Ledger"
                         >
                           <TableIcon size={16} />
                         </Link>
-                        <button 
+                        <button
                           onClick={() => handleEdit(loan)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
                         >
                           <Edit2 size={16} />
                         </button>
                         {isAdmin && (
-                          <button 
+                          <button
                             onClick={() => handleDelete(loan._id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
                           >

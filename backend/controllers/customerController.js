@@ -54,7 +54,7 @@ const getCustomers = async (req, res) => {
 // @route   POST /api/customers
 // @access  Private
 const createCustomer = async (req, res) => {
-  const { name, mobile, address } = req.body;
+  const { name, mobile, altMobile, address } = req.body;
 
   if (!name || !mobile || !address) {
     return res.status(400).json({ message: 'Please provide all fields' });
@@ -70,6 +70,7 @@ const createCustomer = async (req, res) => {
     const customer = await Customer.create({
       name,
       mobile,
+      altMobile,
       address,
       createdBy: req.user._id,
     });

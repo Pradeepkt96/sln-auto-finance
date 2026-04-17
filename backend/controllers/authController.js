@@ -131,6 +131,35 @@ const loginUser = async (req, res) => {
   }
 };
 
+// @desc    Update user profile (username)
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const { username } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (username !== undefined) user.username = username;
+    
+    await user.save();
+    
+    res.json({
+      _id: user._id,
+      username: user.username,
+      mobile: user.mobile,
+      role: user.role,
+      language: user.language,
+    });
+  } catch (error) {
+    console.error('Update profile error:', error.message);
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
 // @desc    Change User Password
 // @route   PUT /api/auth/change-password
 // @access  Private
@@ -159,4 +188,5 @@ module.exports = {
   verifyRegisterOTP,
   loginUser,
   changePassword,
+  updateProfile,
 };

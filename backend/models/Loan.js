@@ -48,7 +48,7 @@ const loanSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'closed', 'default'],
+      enum: ['active', 'closed', 'reloan', 'collection'],
       default: 'active',
     },
     hpaDate: {

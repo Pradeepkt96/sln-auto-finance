@@ -27,7 +27,8 @@ Write-Host "Press Ctrl+C at any time to kill all background services." -Foregrou
 try {
     if (-not (Test-Path $mongodExe)) {
         Write-Host "Error: mongod.exe not found." -ForegroundColor Red
-    } else {
+    }
+    else {
         $dataDir = Join-Path $PSScriptRoot "freshdb"
         if (-not (Test-Path $dataDir)) {
             New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
@@ -58,14 +59,16 @@ try {
     if (Test-Path $frontendDir) {
         if (Test-Path (Join-Path $frontendDir "package.json")) {
             $runningProcesses += Start-Process -FilePath "npm.cmd" -ArgumentList "run", "dev" -WorkingDirectory $frontendDir -NoNewWindow -PassThru
-        } else {
+        }
+        else {
             Write-Host "Warning: frontend/package.json not found, skipping 'npm run dev' for frontend." -ForegroundColor Yellow
         }
 
         $cssPath = Join-Path $frontendDir "src\index.css"
         if (Test-Path $cssPath) {
             $runningProcesses += Start-Process -FilePath "npx.cmd" -ArgumentList "--yes", "tailwindcss@3", "-i", "./src/index.css", "-o", "./src/output.css", "--watch" -WorkingDirectory $frontendDir -NoNewWindow -PassThru
-        } else {
+        }
+        else {
             Write-Host "Warning: frontend/src/index.css not found, skipping tailwind compiler." -ForegroundColor Yellow
         }
     }
@@ -78,7 +81,8 @@ try {
         Start-Sleep -Seconds 1
     }
 
-} finally {
+}
+finally {
     Write-Host "`nStopping all processes..." -ForegroundColor Yellow
     foreach ($p in $runningProcesses) {
         if ($p -and -not $p.HasExited) {
