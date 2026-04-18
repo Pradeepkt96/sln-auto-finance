@@ -4,6 +4,8 @@ const customerSchema = new mongoose.Schema(
   {
     slNo: {
       type: Number,
+      unique: true,
+      sparse: true,
     },
     name: {
       type: String,

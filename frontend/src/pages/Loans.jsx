@@ -56,7 +56,7 @@ const Loans = () => {
   const [searchCustomer, setSearchCustomer] = useState('');
   const [searchVehicle, setSearchVehicle] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortBy, setSortBy] = useState('hpNumber');
   const [sortOrder, setSortOrder] = useState('asc');
 
   // Inline status change

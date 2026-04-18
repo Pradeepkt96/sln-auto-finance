@@ -81,8 +81,9 @@ const createCustomer = async (req, res) => {
   }
 
   try {
-    const lastCustomer = await Customer.findOne().sort({ slNo: -1 });
-    const slNo = lastCustomer && lastCustomer.slNo ? lastCustomer.slNo + 1 : 1;
+    // Use aggregation to reliably find the highest existing slNo
+    const result = await Customer.aggregate([{ $group: { _id: null, maxSlNo: { $max: '$slNo' } } }]);
+    const slNo = result.length > 0 && result[0].maxSlNo ? result[0].maxSlNo + 1 : 1;
 
     const customer = await Customer.create({
       slNo,
