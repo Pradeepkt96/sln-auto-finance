@@ -43,6 +43,9 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/change-password" element={<ChangePassword />} />
           </Route>
+
+          {/* Catch-all route to handle 404s within the app */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

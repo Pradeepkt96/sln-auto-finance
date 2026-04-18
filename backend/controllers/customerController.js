@@ -24,9 +24,13 @@ const getCustomers = async (req, res) => {
 
     // Build sort object
     const sort = {};
-    const allowedSortFields = ['name', 'mobile', 'createdAt'];
-    const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    sort[field] = sortOrder === 'asc' ? 1 : -1;
+    const allowedSortFields = ['name', 'mobile', 'createdAt', 'slNo'];
+    const isSpecialSort = sortBy === 'loanNumbers';
+    
+    if (!isSpecialSort) {
+      const field = allowedSortFields.includes(sortBy) ? sortBy : 'slNo';
+      sort[field] = sortOrder === 'asc' ? 1 : -1;
+    }
 
     const customers = await Customer.find(query).sort(sort).lean();
 
@@ -43,6 +47,16 @@ const getCustomers = async (req, res) => {
         };
       })
     );
+
+    if (isSpecialSort) {
+      customersWithLoans.sort((a, b) => {
+        const valA = a.loanNumbers && a.loanNumbers.length > 0 ? a.loanNumbers[0].hpNumber.toString().toLowerCase() : '';
+        const valB = b.loanNumbers && b.loanNumbers.length > 0 ? b.loanNumbers[0].hpNumber.toString().toLowerCase() : '';
+        
+        if (sortOrder === 'asc') return valA.localeCompare(valB, undefined, { numeric: true });
+        return valB.localeCompare(valA, undefined, { numeric: true });
+      });
+    }
 
     res.json(customersWithLoans);
   } catch (error) {
@@ -67,7 +81,11 @@ const createCustomer = async (req, res) => {
   }
 
   try {
+    const lastCustomer = await Customer.findOne().sort({ slNo: -1 });
+    const slNo = lastCustomer && lastCustomer.slNo ? lastCustomer.slNo + 1 : 1;
+
     const customer = await Customer.create({
+      slNo,
       name,
       mobile,
       altMobile,

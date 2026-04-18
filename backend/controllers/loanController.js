@@ -10,7 +10,7 @@ const logDebug = (msg, data) => {
 // @access  Private
 const getLoans = async (req, res) => {
   try {
-    const { search, status, sortBy, sortOrder } = req.query;
+    const { hpNumber, hpaDate, customer, vehicleNumber, status, sortBy, sortOrder } = req.query;
 
     let query = {};
 
@@ -44,16 +44,36 @@ const getLoans = async (req, res) => {
       });
     }
 
-    // Search by HP number, vehicle number, make, model, or customer name/mobile (post-populate)
-    if (search && search.trim()) {
-      const term = search.trim().toLowerCase();
+    // Process individual search filters
+    if (hpNumber && hpNumber.trim()) {
+      const term = hpNumber.trim().toLowerCase();
+      loans = loans.filter(loan => loan.hpNumber?.toLowerCase().includes(term));
+    }
+    if (hpaDate && hpaDate.trim()) {
+      const term = hpaDate.trim();
+      loans = loans.filter(loan => {
+        if (!loan.hpaDate) return false;
+        const d = new Date(loan.hpaDate);
+        const day = d.getDate().toString().padStart(2, '0');
+        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+        const year = d.getFullYear();
+        const formatted = `${day}/${month}/${year}`;
+        return formatted.includes(term);
+      });
+    }
+    if (customer && customer.trim()) {
+      const term = customer.trim().toLowerCase();
       loans = loans.filter(loan =>
-        loan.hpNumber?.toLowerCase().includes(term) ||
-        loan.vehicleNumber?.toLowerCase().includes(term) ||
-        loan.make?.toLowerCase().includes(term) ||
-        loan.vehicleModel?.toLowerCase().includes(term) ||
         loan.customerReference?.name?.toLowerCase().includes(term) ||
         loan.customerReference?.mobile?.includes(term)
+      );
+    }
+    if (vehicleNumber && vehicleNumber.trim()) {
+      const term = vehicleNumber.trim().toLowerCase();
+      loans = loans.filter(loan =>
+        loan.vehicleNumber?.toLowerCase().includes(term) ||
+        loan.make?.toLowerCase().includes(term) ||
+        loan.vehicleModel?.toLowerCase().includes(term)
       );
     }
 

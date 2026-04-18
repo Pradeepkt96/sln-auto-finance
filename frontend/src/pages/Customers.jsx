@@ -42,8 +42,8 @@ const Customers = () => {
 
   // Search / Sort state
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortBy, setSortBy] = useState('slNo');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Form State
   const [name, setName] = useState('');
@@ -286,11 +286,11 @@ const Customers = () => {
               <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                 <th 
                   className="p-4 w-20 cursor-pointer hover:text-primary-600 transition-colors"
-                  onClick={() => handleSortToggle('createdAt')}
+                  onClick={() => handleSortToggle('slNo')}
                 >
                   <div className="flex items-center">
                     Sl. no
-                    <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
+                    <SortIcon field="slNo" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
                 <th 
@@ -306,11 +306,11 @@ const Customers = () => {
                 <th className="p-4">{t('address')}</th>
                 <th 
                   className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
-                  onClick={() => handleSortToggle('createdAt')}
+                  onClick={() => handleSortToggle('loanNumbers')}
                 >
                   <div className="flex items-center">
                     Loan Nos.
-                    <SortIcon field="createdAt" sortBy={sortBy} sortOrder={sortOrder} />
+                    <SortIcon field="loanNumbers" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
                 <th className="p-4 text-center">{t('actions')}</th>
@@ -324,7 +324,7 @@ const Customers = () => {
               ) : (
                 customers.map((customer, index) => (
                   <tr key={customer._id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="p-4 text-sm text-slate-400 font-medium">{index + 1}</td>
+                    <td className="p-4 text-sm text-slate-400 font-bold">{customer.slNo || index + 1}</td>
                     <td className="p-4 font-bold text-slate-800">{customer.name}</td>
                     <td className="p-4 text-sm">
                       <div>{customer.mobile}</div>

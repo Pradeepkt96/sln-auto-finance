@@ -51,10 +51,13 @@ const Loans = () => {
   const [editingId, setEditingId] = useState(null);
 
   // Search / Filter / Sort
-  const [search, setSearch] = useState('');
+  const [searchHpNumber, setSearchHpNumber] = useState('');
+  const [searchHpaDate, setSearchHpaDate] = useState('');
+  const [searchCustomer, setSearchCustomer] = useState('');
+  const [searchVehicle, setSearchVehicle] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Inline status change
   const [changingStatus, setChangingStatus] = useState(null);
@@ -119,7 +122,11 @@ const Loans = () => {
   const fetchData = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (search) params.append('search', search);
+      if (searchHpNumber) params.append('hpNumber', searchHpNumber);
+      if (searchHpaDate) params.append('hpaDate', searchHpaDate);
+      if (searchCustomer) params.append('customer', searchCustomer);
+      if (searchVehicle) params.append('vehicleNumber', searchVehicle);
+      
       if (filterStatus) params.append('status', filterStatus);
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
@@ -135,7 +142,7 @@ const Loans = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, filterStatus, sortBy, sortOrder]);
+  }, [searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder]);
 
   useEffect(() => {
     const debounce = setTimeout(() => fetchData(), 300);
@@ -448,26 +455,59 @@ const Loans = () => {
       )}
 
       {/* Search & Filter & Create */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px] max-w-md w-full">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            className="input-field py-2 pl-9 pr-8 text-sm"
-            placeholder="Search HP No., vehicle, customer..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+      <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              placeholder="HP No..."
+              value={searchHpNumber}
+              onChange={e => setSearchHpNumber(e.target.value)}
+            />
+          </div>
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              placeholder="HPA Date (dd/mm/yyyy)..."
+              value={searchHpaDate}
+              onChange={e => setSearchHpaDate(e.target.value)}
+            />
+          </div>
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              placeholder="Customer Name/Mobile..."
+              value={searchCustomer}
+              onChange={e => setSearchCustomer(e.target.value)}
+            />
+          </div>
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              placeholder="Vehicle No/Make/Model..."
+              value={searchVehicle}
+              onChange={e => setSearchVehicle(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
+            className="btn-primary w-full flex items-center justify-center py-2 px-4 shadow-sm"
+          >
+            {showForm ? <X size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
+            {showForm ? 'Cancel' : t('createLoan')}
+          </button>
         </div>
-
-        <button
-          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
-          className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10 ml-auto"
-        >
-          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
-          {showForm ? 'Cancel' : t('createLoan')}
-        </button>
       </div>
+
+
 
       {/* Loans Table */}
       <div className="card p-0 overflow-hidden shadow-sm border-slate-100">

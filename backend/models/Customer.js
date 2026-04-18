@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema(
   {
+    slNo: {
+      type: Number,
+    },
     name: {
       type: String,
       required: true,

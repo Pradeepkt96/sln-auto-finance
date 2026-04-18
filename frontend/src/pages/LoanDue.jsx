@@ -83,6 +83,7 @@ const LoanDue = () => {
             penaltyEnabled : !isPending && !isOverdue ? !!(p.penalty) : false,
             collectionCharges: p.collectionCharges || 1500,
             collectionChargesEnabled: p.collectionChargesEnabled || false,
+            paymentMode    : p.paymentMode || 'cash',
             // Empty for never-saved pending rows; pre-fill for paid/partial rows
             paidDate       : (isPending || isOverdue) && !wasRecorded
                                ? ''
@@ -172,6 +173,7 @@ const LoanDue = () => {
         ...vals,
         paidDate      : paidDateISO,
         receivedAmount: recAmount,
+        paymentMode   : vals.paymentMode || 'cash',
         penalty       : vals.penaltyEnabled ? (parseFloat(vals.penalty) || 0) : 0,
         collectionCharges: vals.collectionChargesEnabled ? (parseFloat(vals.collectionCharges) || 0) : 0,
         collectionChargesEnabled: vals.collectionChargesEnabled,
@@ -339,6 +341,7 @@ const LoanDue = () => {
                 <th className="p-4">{t('receiptNo')}</th>
                 <th className="p-4 text-center">{t('penalty')}</th>
                 <th className="p-4 text-center">{t('collectionCharges')}</th>
+                <th className="p-4 text-center">Pay Mode</th>
                 <th className="p-4 text-center">Save</th>
               </tr>
             </thead>
@@ -480,6 +483,18 @@ const LoanDue = () => {
                           <span className="text-xs text-slate-300">—</span>
                         )}
                       </div>
+                    </td>
+
+                    {/* Payment Mode */}
+                    <td className="p-4 text-center">
+                      <select
+                        className="text-xs rounded border border-slate-200 py-1.5 px-2 focus:ring-1 focus:ring-primary-500 bg-white"
+                        value={ev.paymentMode || 'cash'}
+                        onChange={(e) => setField(p._id, 'paymentMode', e.target.value)}
+                      >
+                        <option value="cash">💵 Cash</option>
+                        <option value="online">📱 Gpay</option>
+                      </select>
                     </td>
 
                     {/* Save */}
