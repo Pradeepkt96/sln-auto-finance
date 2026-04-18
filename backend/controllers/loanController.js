@@ -31,6 +31,7 @@ const getLoans = async (req, res) => {
     }
     
     let loans = await Loan.find(query)
+      .collation({ locale: 'en_US', numericOrdering: true })
       .populate('customerReference', 'name mobile')
       .sort(sort);
 
