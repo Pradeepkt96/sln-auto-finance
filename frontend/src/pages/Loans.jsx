@@ -47,6 +47,7 @@ const Loans = () => {
   const [loans, setLoans] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lightboxUrl, setLightboxUrl] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -307,6 +308,15 @@ const Loans = () => {
 
   return (
     <div className="space-y-4">
+      {/* Image lightbox modal */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setLightboxUrl('')}>
+          <div className="max-w-[95%] max-h-[95%] p-4" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setLightboxUrl('')} className="mb-2 text-white text-sm">Close ✕</button>
+            <img src={lightboxUrl} alt="Full size" className="w-full h-full object-contain rounded" />
+          </div>
+        </div>
+      )}
       {/* Form */}
 
       {/* Form */}
@@ -577,8 +587,24 @@ const Loans = () => {
                       <div className="text-sm text-slate-600">{formatDate(loan.hpaDate)}</div>
                     </td>
                     <td className="p-4">
-                      <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
-                      <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
+                          {loan.customerReference?.photoUrl ? (
+                            <img
+                              src={loan.customerReference.photoUrl}
+                              alt={loan.customerReference?.name}
+                              className="w-full h-full object-cover cursor-pointer"
+                              onClick={() => setLightboxUrl(loan.customerReference.photoUrl)}
+                            />
+                          ) : (
+                            <div className="text-slate-400 text-xs">No Photo</div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
+                          <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="p-4">
                       <div className="font-medium text-slate-700">{loan.vehicleNumber}</div>

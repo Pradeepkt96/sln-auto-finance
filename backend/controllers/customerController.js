@@ -1,5 +1,7 @@
 const Customer = require('../models/Customer');
 const Loan = require('../models/Loan');
+const cloudinary = require('../config/cloudinary');
+const streamifier = require('streamifier');
 
 // @desc    Get all customers (with optional search/filter/sort)
 // @route   GET /api/customers
@@ -109,7 +111,7 @@ const createCustomer = async (req, res) => {
 const updateCustomer = async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
 
@@ -150,9 +152,82 @@ const deleteCustomer = async (req, res) => {
   }
 };
 
+// @desc    Upload/replace customer photo
+// @route   POST /api/customers/:id/photo
+// @access  Private
+const uploadCustomerPhoto = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    // Get existing public id so we can delete after successful upload
+    const existing = await Customer.findById(req.params.id).select('photoPublicId');
+    const oldPublicId = existing?.photoPublicId;
+
+    // Upload buffer stream to Cloudinary with transformation to optimize image
+    const uploadStream = cloudinary.uploader.upload_stream({
+      folder: 'customers',
+      resource_type: 'image',
+      transformation: [
+        { width: 400, height: 400, crop: 'thumb', gravity: 'face', fetch_format: 'auto', quality: 'auto' }
+      ]
+    }, async (error, result) => {
+      if (error) {
+        console.error('Cloudinary upload error:', error);
+        return res.status(500).json({ message: 'Image upload failed' });
+      }
+      const { secure_url, public_id } = result;
+      const customer = await Customer.findByIdAndUpdate(req.params.id, { photoUrl: secure_url, photoPublicId: public_id }, { returnDocument: 'after' });
+      if (!customer) return res.status(404).json({ message: 'Customer not found' });
+
+      // After successful upload and DB update, delete old image to avoid orphaned files
+      if (oldPublicId && oldPublicId !== public_id) {
+        try {
+          await cloudinary.uploader.destroy(oldPublicId, { resource_type: 'image' });
+        } catch (delErr) {
+          console.error('Failed to delete old Cloudinary image:', delErr);
+        }
+      }
+
+      res.json(customer);
+    });
+
+    streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+  } catch (error) {
+    console.error('Upload Customer Photo Error:', error);
+    res.status(500).json({ message: 'Server error uploading photo' });
+  }
+};
+
+// @desc    Delete a customer's photo
+// @route   DELETE /api/customers/:id/photo
+// @access  Private
+const deleteCustomerPhoto = async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id).select('photoPublicId photoUrl');
+    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!customer.photoPublicId) return res.status(400).json({ message: 'No photo to delete' });
+
+    try {
+      await cloudinary.uploader.destroy(customer.photoPublicId, { resource_type: 'image' });
+    } catch (err) {
+      console.error('Cloudinary destroy error:', err);
+      // proceed to clear DB fields even if Cloudinary delete failed
+    }
+
+    const updated = await Customer.findByIdAndUpdate(req.params.id, { photoUrl: null, photoPublicId: null }, { returnDocument: 'after' });
+    res.json(updated);
+  } catch (error) {
+    console.error('Delete Customer Photo Error:', error);
+    res.status(500).json({ message: 'Server error deleting photo' });
+  }
+};
+
 module.exports = {
   getCustomers,
   createCustomer,
   updateCustomer,
+  uploadCustomerPhoto,
+  deleteCustomerPhoto,
   deleteCustomer,
 };

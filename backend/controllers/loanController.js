@@ -32,7 +32,7 @@ const getLoans = async (req, res) => {
     
     let loans = await Loan.find(query)
       .collation({ locale: 'en_US', numericOrdering: true })
-      .populate('customerReference', 'name mobile')
+      .populate('customerReference', 'name mobile photoUrl')
       .sort(sort);
 
     // Handle special sorting (e.g. by customer name)
@@ -165,8 +165,8 @@ const updateLoanStatus = async (req, res) => {
     const loan = await Loan.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true, runValidators: true }
-    ).populate('customerReference', 'name mobile');
+      { returnDocument: 'after', runValidators: true }
+    ).populate('customerReference', 'name mobile photoUrl');
 
     if (!loan) {
       return res.status(404).json({ message: 'Loan not found' });
@@ -270,7 +270,7 @@ const updateLoan = async (req, res) => {
       await Promise.all(updatePromises);
     }
 
-    const updatedLoan = await Loan.findById(loan._id).populate('customerReference', 'name mobile');
+    const updatedLoan = await Loan.findById(loan._id).populate('customerReference', 'name mobile photoUrl');
     res.json(updatedLoan);
   } catch (error) {
     console.error('Loan Update Error:', error);
@@ -334,7 +334,7 @@ const updatePayment = async (req, res) => {
         status,
         paidDate: paidDate || new Date(),
       },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!payment) {
@@ -372,7 +372,7 @@ const recalculateDueDates = async (req, res) => {
     const updatePromises = unpaidPayments.map((p, idx) => {
       const dueDate = new Date(baseDate);
       dueDate.setMonth(baseDate.getMonth() + idx); // 0-based offset per slot
-      return Payment.findByIdAndUpdate(p._id, { dueDate }, { new: true });
+      return Payment.findByIdAndUpdate(p._id, { dueDate }, { returnDocument: 'after' });
     });
 
     await Promise.all(updatePromises);

@@ -23,6 +23,16 @@ const customerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Photo URL stored after Cloudinary upload
+    photoUrl: {
+      type: String,
+      required: false,
+    },
+    // Cloudinary public id for the uploaded image (useful for deletions/updates)
+    photoPublicId: {
+      type: String,
+      required: false,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

@@ -50,6 +50,9 @@ const Customers = () => {
   const [mobile, setMobile] = useState('');
   const [altMobile, setAltMobile] = useState('');
   const [address, setAddress] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [lightboxUrl, setLightboxUrl] = useState('');
 
   // Role check
   const role = localStorage.getItem('role');
@@ -108,10 +111,22 @@ const Customers = () => {
 
     setSubmitting(true);
     try {
+      let customerRes = null;
       if (editingId) {
-        await sln.put(`/customers/${editingId}`, { name, mobile, altMobile, address });
+        customerRes = (await sln.put(`/customers/${editingId}`, { name, mobile, altMobile, address })).data;
       } else {
-        await sln.post('/customers', { name, mobile, altMobile, address });
+        customerRes = (await sln.post('/customers', { name, mobile, altMobile, address })).data;
+      }
+
+      // If a photo file was selected, upload it
+      if (photoFile && customerRes && customerRes._id) {
+        const fd = new FormData();
+        fd.append('photo', photoFile);
+        try {
+          await sln.post(`/customers/${customerRes._id}/photo`, fd);
+        } catch (uploadErr) {
+          console.error('Photo upload failed', uploadErr);
+        }
       }
 
       resetForm();
@@ -122,6 +137,18 @@ const Customers = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePhotoChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) {
+      setPhotoFile(null);
+      setPhotoPreview('');
+      return;
+    }
+    setPhotoFile(f);
+    const url = URL.createObjectURL(f);
+    setPhotoPreview(url);
   };
 
   const handleDelete = async (id) => {
@@ -142,6 +169,7 @@ const Customers = () => {
     setMobile(customer.mobile);
     setAltMobile(customer.altMobile || '');
     setAddress(customer.address);
+    setPhotoPreview(customer.photoUrl || '');
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -153,6 +181,8 @@ const Customers = () => {
     setMobile('');
     setAltMobile('');
     setAddress('');
+    setPhotoFile(null);
+    setPhotoPreview('');
     setErrors({});
   };
 
@@ -179,6 +209,15 @@ const Customers = () => {
 
   return (
     <div className="space-y-4">
+      {/* Image lightbox modal */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setLightboxUrl('')}>
+          <div className="max-w-[95%] max-h-[95%] p-4" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setLightboxUrl('')} className="mb-2 text-white text-sm">Close ✕</button>
+            <img src={lightboxUrl} alt="Full size" className="w-full h-full object-contain rounded" />
+          </div>
+        </div>
+      )}
       {/* Form */}
 
       {/* Form */}
@@ -242,6 +281,16 @@ const Customers = () => {
                 placeholder="Full address"
               />
               <FieldError msg={errors.address} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Photo (optional)</label>
+              <input type="file" accept="image/*" onChange={handlePhotoChange} />
+              {photoPreview && (
+                <div className="mt-2 w-24 h-24 rounded overflow-hidden border">
+                  <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
 
             <div className="md:col-span-3 flex justify-end gap-3 mt-2">
@@ -325,7 +374,21 @@ const Customers = () => {
                 customers.map((customer, index) => (
                   <tr key={customer._id} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-4 text-sm text-slate-400 font-bold">{customer.slNo || index + 1}</td>
-                    <td className="p-4 font-bold text-slate-800">{customer.name}</td>
+                    <td className="p-4 font-bold text-slate-800 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
+                        {customer.photoUrl ? (
+                          <img
+                            src={customer.photoUrl}
+                            alt={customer.name}
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => setLightboxUrl(customer.photoUrl)}
+                          />
+                        ) : (
+                          <div className="text-slate-400 text-xs">No Photo</div>
+                        )}
+                      </div>
+                      <div>{customer.name}</div>
+                    </td>
                     <td className="p-4 text-sm">
                       <div>{customer.mobile}</div>
                       {customer.altMobile && (
