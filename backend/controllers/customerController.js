@@ -8,7 +8,8 @@ const streamifier = require('streamifier');
 // @access  Private
 const getCustomers = async (req, res) => {
   try {
-    const { search, sortBy, sortOrder } = req.query;
+    const { search, sortBy, sortOrder, includeLoanNumbers = 'true' } = req.query;
+    const shouldIncludeLoanNumbers = includeLoanNumbers !== 'false';
 
     let query = {};
 
@@ -36,19 +37,33 @@ const getCustomers = async (req, res) => {
 
     const customers = await Customer.find(query).sort(sort).lean();
 
-    // Fetch loan numbers for each customer
-    const customersWithLoans = await Promise.all(
-      customers.map(async (customer) => {
-        const loans = await Loan.find({ customerReference: customer._id }, 'hpNumber hpaDate');
-        return {
-          ...customer,
-          loanNumbers: loans.map((l) => ({
-            hpNumber: l.hpNumber,
-            hpaDate: l.hpaDate,
-          })),
-        };
-      })
-    );
+    if (!shouldIncludeLoanNumbers) {
+      return res.json(customers);
+    }
+
+    const customerIds = customers.map((customer) => customer._id);
+    const loans = await Loan.find(
+      { customerReference: { $in: customerIds } },
+      'customerReference hpNumber hpaDate'
+    ).lean();
+
+    const loansByCustomerId = new Map();
+    loans.forEach((loan) => {
+      const customerId = loan.customerReference?.toString();
+      if (!customerId) return;
+      if (!loansByCustomerId.has(customerId)) {
+        loansByCustomerId.set(customerId, []);
+      }
+      loansByCustomerId.get(customerId).push({
+        hpNumber: loan.hpNumber,
+        hpaDate: loan.hpaDate,
+      });
+    });
+
+    const customersWithLoans = customers.map((customer) => ({
+      ...customer,
+      loanNumbers: loansByCustomerId.get(customer._id.toString()) || [],
+    }));
 
     if (isSpecialSort) {
       customersWithLoans.sort((a, b) => {

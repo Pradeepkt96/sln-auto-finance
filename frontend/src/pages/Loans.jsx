@@ -120,7 +120,16 @@ const Loans = () => {
     if (!emiManuallyEdited) setEmiAmount(autoValue);
   }, [loanAmount, interestRate, installments]);
 
-  const fetchData = useCallback(async () => {
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const { data } = await sln.get('/customers?includeLoanNumbers=false&sortBy=name&sortOrder=asc');
+      setCustomers(data);
+    } catch (error) {
+      console.error('Failed to fetch customers', error);
+    }
+  }, []);
+
+  const fetchLoans = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (searchHpNumber) params.append('hpNumber', searchHpNumber);
@@ -132,23 +141,23 @@ const Loans = () => {
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
 
-      const [loansRes, customersRes] = await Promise.all([
-        sln.get(`/loans?${params.toString()}`),
-        sln.get('/customers'),
-      ]);
-      setLoans(loansRes.data);
-      setCustomers(customersRes.data);
+      const { data } = await sln.get(`/loans?${params.toString()}`);
+      setLoans(data);
     } catch (error) {
-      console.error('Failed to fetch data', error);
+      console.error('Failed to fetch loans', error);
     } finally {
       setLoading(false);
     }
   }, [searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder]);
 
   useEffect(() => {
-    const debounce = setTimeout(() => fetchData(), 300);
+    fetchCustomers();
+  }, [fetchCustomers]);
+
+  useEffect(() => {
+    const debounce = setTimeout(() => fetchLoans(), 300);
     return () => clearTimeout(debounce);
-  }, [fetchData]);
+  }, [fetchLoans]);
 
   const handleSortToggle = (field) => {
     if (sortBy === field) {
@@ -214,7 +223,8 @@ const Loans = () => {
       }
 
       resetForm();
-      fetchData();
+      fetchLoans();
+      fetchCustomers();
     } catch (error) {
       console.error('Failed to save loan', error);
       alert(error.response?.data?.message || 'Error saving loan');
@@ -227,7 +237,8 @@ const Loans = () => {
 
     try {
       await sln.delete(`/loans/${id}`);
-      fetchData();
+      fetchLoans();
+      fetchCustomers();
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting loan');
     }

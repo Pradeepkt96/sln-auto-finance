@@ -11,73 +11,98 @@ const logDebug = (msg, data) => {
 const getLoans = async (req, res) => {
   try {
     const { hpNumber, hpaDate, customer, vehicleNumber, status, sortBy, sortOrder } = req.query;
+    const query = {};
 
-    let query = {};
-
-    // Status filter
     if (status && ['active', 'closed', 'reloan', 'collection'].includes(status)) {
       query.status = status;
     }
 
-    // Build sort object
-    const sort = {};
-    const allowedSortFields = ['loanAmount', 'emiAmount', 'installments', 'createdAt', 'hpNumber', 'hpaDate', 'status'];
-    const isSpecialSort = sortBy === 'customerReference';
-    
-    // Default sorting in DB for standard fields
-    if (!isSpecialSort) {
-      const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
-      sort[field] = sortOrder === 'asc' ? 1 : -1;
-    }
-    
-    let loans = await Loan.find(query)
-      .collation({ locale: 'en_US', numericOrdering: true })
-      .populate('customerReference', 'name mobile photoUrl')
-      .sort(sort);
-
-    // Handle special sorting (e.g. by customer name)
-    if (isSpecialSort) {
-      loans.sort((a, b) => {
-        const valA = a.customerReference?.name?.toLowerCase() || '';
-        const valB = b.customerReference?.name?.toLowerCase() || '';
-        if (sortOrder === 'asc') return valA.localeCompare(valB);
-        return valB.localeCompare(valA);
-      });
-    }
-
-    // Process individual search filters
     if (hpNumber && hpNumber.trim()) {
-      const term = hpNumber.trim().toLowerCase();
-      loans = loans.filter(loan => loan.hpNumber?.toLowerCase().includes(term));
-    }
-    if (hpaDate && hpaDate.trim()) {
-      const term = hpaDate.trim();
-      loans = loans.filter(loan => {
-        if (!loan.hpaDate) return false;
-        const d = new Date(loan.hpaDate);
-        const day = d.getDate().toString().padStart(2, '0');
-        const month = (d.getMonth() + 1).toString().padStart(2, '0');
-        const year = d.getFullYear();
-        const formatted = `${day}/${month}/${year}`;
-        return formatted.includes(term);
-      });
-    }
-    if (customer && customer.trim()) {
-      const term = customer.trim().toLowerCase();
-      loans = loans.filter(loan =>
-        loan.customerReference?.name?.toLowerCase().includes(term) ||
-        loan.customerReference?.mobile?.includes(term)
-      );
-    }
-    if (vehicleNumber && vehicleNumber.trim()) {
-      const term = vehicleNumber.trim().toLowerCase();
-      loans = loans.filter(loan =>
-        loan.vehicleNumber?.toLowerCase().includes(term) ||
-        loan.make?.toLowerCase().includes(term) ||
-        loan.vehicleModel?.toLowerCase().includes(term)
-      );
+      query.hpNumber = { $regex: hpNumber.trim(), $options: 'i' };
     }
 
+    if (vehicleNumber && vehicleNumber.trim()) {
+      const term = vehicleNumber.trim();
+      query.$or = [
+        { vehicleNumber: { $regex: term, $options: 'i' } },
+        { make: { $regex: term, $options: 'i' } },
+        { vehicleModel: { $regex: term, $options: 'i' } },
+      ];
+    }
+
+    const customerMatch = customer && customer.trim()
+      ? {
+          $or: [
+            { 'customerReference.name': { $regex: customer.trim(), $options: 'i' } },
+            { 'customerReference.mobile': { $regex: customer.trim(), $options: 'i' } },
+          ],
+        }
+      : null;
+
+    const hpaDateMatch = hpaDate && hpaDate.trim()
+      ? {
+          hpaDateDisplay: { $regex: hpaDate.trim() },
+        }
+      : null;
+
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const allowedSortFields = ['loanAmount', 'emiAmount', 'installments', 'createdAt', 'hpNumber', 'hpaDate', 'status'];
+    const sortField = sortBy === 'customerReference'
+      ? 'customerReference.name'
+      : (allowedSortFields.includes(sortBy) ? sortBy : 'createdAt');
+
+    const pipeline = [
+      { $match: query },
+      {
+        $lookup: {
+          from: 'customers',
+          localField: 'customerReference',
+          foreignField: '_id',
+          as: 'customerReference',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+                mobile: 1,
+                photoUrl: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: '$customerReference',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          hpaDateDisplay: {
+            $cond: [
+              { $ifNull: ['$hpaDate', false] },
+              { $dateToString: { format: '%d/%m/%Y', date: '$hpaDate' } },
+              '',
+            ],
+          },
+        },
+      },
+    ];
+
+    if (customerMatch) {
+      pipeline.push({ $match: customerMatch });
+    }
+
+    if (hpaDateMatch) {
+      pipeline.push({ $match: hpaDateMatch });
+    }
+
+    pipeline.push(
+      { $sort: { [sortField]: sortDirection, _id: 1 } },
+      { $project: { hpaDateDisplay: 0 } }
+    );
+
+    const loans = await Loan.aggregate(pipeline).collation({ locale: 'en_US', numericOrdering: true });
     res.json(loans);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
