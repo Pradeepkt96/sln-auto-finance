@@ -10,7 +10,7 @@ const router = express.Router();
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const activeLoansCount = await Loan.countDocuments({ status: 'active' });
+    const activeLoansCount = await Loan.countDocuments({ status: { $in: ['active', 'collection'] } });
     
     // Today's collections
     const startOfDay = new Date();
