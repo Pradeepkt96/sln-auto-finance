@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import sln from '../api';
 import { formatDate, toDisplayInputDate, parseDisplayDate } from '../utils/dateUtils';
+import { transliterateTamilName } from '../utils/tamilTransliteration';
 import {
   PlusCircle,
   Info,
@@ -42,9 +43,10 @@ const SortIcon = ({ field, sortBy, sortOrder }) => {
 };
 
 const Loans = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
+  const [vehicleMakeDirectory, setVehicleMakeDirectory] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lightboxUrl, setLightboxUrl] = useState('');
@@ -96,6 +98,8 @@ const Loans = () => {
   const [make, setMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [color, setColor] = useState('');
+  const [showMakeSuggestions, setShowMakeSuggestions] = useState(false);
+  const [activeMakeSuggestion, setActiveMakeSuggestion] = useState(-1);
 
   // Validation
   const [errors, setErrors] = useState({});
@@ -120,14 +124,23 @@ const Loans = () => {
     if (!emiManuallyEdited) setEmiAmount(autoValue);
   }, [loanAmount, interestRate, installments]);
 
+  const localizeCustomerRecord = useCallback((customer) => {
+    if (!customer) return customer;
+
+    return {
+      ...customer,
+      name: i18n.language === 'ta' ? transliterateTamilName(customer.name) : customer.name,
+    };
+  }, [i18n.language]);
+
   const fetchCustomers = useCallback(async () => {
     try {
       const { data } = await sln.get('/customers?includeLoanNumbers=false&sortBy=name&sortOrder=asc');
-      setCustomers(data);
+      setCustomers(data.map(localizeCustomerRecord));
     } catch (error) {
       console.error('Failed to fetch customers', error);
     }
-  }, []);
+  }, [localizeCustomerRecord]);
 
   const fetchLoans = useCallback(async () => {
     try {
@@ -142,17 +155,37 @@ const Loans = () => {
       params.append('sortOrder', sortOrder);
 
       const { data } = await sln.get(`/loans?${params.toString()}`);
-      setLoans(data);
+      setLoans(data.map((loan) => ({
+        ...loan,
+        customerReference: localizeCustomerRecord(loan.customerReference),
+      })));
     } catch (error) {
       console.error('Failed to fetch loans', error);
     } finally {
       setLoading(false);
     }
-  }, [searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder]);
+  }, [localizeCustomerRecord, searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder]);
+
+  const fetchVehicleMakeDirectory = useCallback(async () => {
+    try {
+      const { data } = await sln.get('/loans?sortBy=createdAt&sortOrder=desc');
+      const uniqueMakes = data
+        .map((loan) => loan.make?.trim())
+        .filter(Boolean)
+        .filter((value, index, list) => index === list.findIndex((entry) => entry.toLowerCase() === value.toLowerCase()));
+      setVehicleMakeDirectory(uniqueMakes);
+    } catch (error) {
+      console.error('Failed to fetch vehicle makes', error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    fetchVehicleMakeDirectory();
+  }, [fetchVehicleMakeDirectory]);
 
   useEffect(() => {
     const debounce = setTimeout(() => fetchLoans(), 300);
@@ -191,6 +224,8 @@ const Loans = () => {
     setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
     setVehicleNumber(''); setMake(''); setVehicleModel(''); setColor('');
     setHpaDate('');
+    setShowMakeSuggestions(false);
+    setActiveMakeSuggestion(-1);
     setErrors({});
     setEditingId(null);
     setShowForm(false);
@@ -225,6 +260,7 @@ const Loans = () => {
       resetForm();
       fetchLoans();
       fetchCustomers();
+      fetchVehicleMakeDirectory();
     } catch (error) {
       console.error('Failed to save loan', error);
       alert(error.response?.data?.message || 'Error saving loan');
@@ -239,6 +275,7 @@ const Loans = () => {
       await sln.delete(`/loans/${id}`);
       fetchLoans();
       fetchCustomers();
+      fetchVehicleMakeDirectory();
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting loan');
     }
@@ -258,6 +295,8 @@ const Loans = () => {
     setVehicleModel(loan.vehicleModel);
     setColor(loan.color);
     setHpaDate(toDisplayInputDate(loan.hpaDate));
+    setShowMakeSuggestions(false);
+    setActiveMakeSuggestion(-1);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -307,6 +346,49 @@ const Loans = () => {
     if (raw.length > 2) formatted = raw.slice(0, 2) + '/' + raw.slice(2);
     setVehicleModel(formatted);
     if (errors.vehicleModel) setErrors(p => ({ ...p, vehicleModel: '' }));
+  };
+
+  const normalizedMake = make.trim().toLowerCase();
+  const makeSuggestions = normalizedMake
+    ? vehicleMakeDirectory
+        .filter((value) => value.toLowerCase().includes(normalizedMake))
+        .slice(0, 6)
+    : [];
+
+  const selectMakeSuggestion = (value) => {
+    setMake(value);
+    setShowMakeSuggestions(false);
+    setActiveMakeSuggestion(-1);
+    if (errors.make) setErrors((prev) => ({ ...prev, make: '' }));
+  };
+
+  const handleMakeSuggestionKeyDown = (e) => {
+    if (!makeSuggestions.length) return;
+
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault();
+      setShowMakeSuggestions(true);
+      setActiveMakeSuggestion((prev) => (prev + 1) % makeSuggestions.length);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault();
+      setShowMakeSuggestions(true);
+      setActiveMakeSuggestion((prev) => (prev <= 0 ? makeSuggestions.length - 1 : prev - 1));
+      return;
+    }
+
+    if (e.key === 'Enter' && activeMakeSuggestion >= 0) {
+      e.preventDefault();
+      selectMakeSuggestion(makeSuggestions[activeMakeSuggestion]);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      setShowMakeSuggestions(false);
+      setActiveMakeSuggestion(-1);
+    }
   };
 
   if (loading) {
@@ -437,13 +519,68 @@ const Loans = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleMake')}</label>
-                  <input
-                    type="text"
-                    className={`input-field py-2 ${errors.make ? 'border-red-400 focus:ring-red-300' : ''}`}
-                    value={make}
-                    onChange={e => { setMake(e.target.value); if (errors.make) setErrors(p => ({ ...p, make: '' })); }}
-                    placeholder="e.g. Honda"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className={`input-field py-2 pr-24 ${errors.make ? 'border-red-400 focus:ring-red-300' : ''}`}
+                      value={make}
+                      onChange={e => {
+                        setMake(e.target.value);
+                        setShowMakeSuggestions(true);
+                        setActiveMakeSuggestion(-1);
+                        if (errors.make) setErrors(p => ({ ...p, make: '' }));
+                      }}
+                      onFocus={() => {
+                        setShowMakeSuggestions(true);
+                        setActiveMakeSuggestion(-1);
+                      }}
+                      onBlur={() => setTimeout(() => {
+                        setShowMakeSuggestions(false);
+                        setActiveMakeSuggestion(-1);
+                      }, 150)}
+                      onKeyDown={handleMakeSuggestionKeyDown}
+                      placeholder="e.g. Honda"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setShowMakeSuggestions((prev) => !prev);
+                        setActiveMakeSuggestion(-1);
+                      }}
+                    >
+                      <span>Makes</span>
+                      <ChevronDownIcon size={14} className={`transition-transform duration-150 ${showMakeSuggestions ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showMakeSuggestions && makeSuggestions.length > 0 && (
+                      <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.16)]">
+                        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          <span>Vehicle Makes</span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-400">{makeSuggestions.length}</span>
+                        </div>
+                        {makeSuggestions.map((value, index) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`block w-full border-l-2 px-3 py-2.5 text-left text-sm font-medium transition ${
+                              activeMakeSuggestion === index
+                                ? 'border-primary-500 bg-primary-50 text-primary-900'
+                                : 'border-transparent text-slate-700 hover:bg-slate-50'
+                            }`}
+                            onMouseEnter={() => setActiveMakeSuggestion(index)}
+                            onMouseDown={() => selectMakeSuggestion(value)}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                        <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-400">
+                          ArrowDown or Tab for next, Enter to select
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <FieldError msg={errors.make} />
                 </div>
 

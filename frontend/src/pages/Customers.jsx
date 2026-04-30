@@ -9,6 +9,7 @@ import {
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown, 
+  ChevronDown,
   X, 
   AlertCircle, 
   Edit2, 
@@ -36,6 +37,7 @@ const SortIcon = ({ field, sortBy, sortOrder }) => {
 const Customers = () => {
   const { t } = useTranslation();
   const [customers, setCustomers] = useState([]);
+  const [customerDirectory, setCustomerDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -53,6 +55,8 @@ const Customers = () => {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [lightboxUrl, setLightboxUrl] = useState('');
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const [activeNameSuggestion, setActiveNameSuggestion] = useState(-1);
 
   // Role check
   const role = localStorage.getItem('role');
@@ -78,10 +82,23 @@ const Customers = () => {
     }
   }, [search, sortBy, sortOrder]);
 
+  const fetchCustomerDirectory = useCallback(async () => {
+    try {
+      const { data } = await sln.get('/customers?includeLoanNumbers=false&sortBy=name&sortOrder=asc');
+      setCustomerDirectory(data);
+    } catch (error) {
+      console.error('Failed to fetch customer directory', error);
+    }
+  }, []);
+
   useEffect(() => {
     const debounce = setTimeout(() => fetchCustomers(), 300);
     return () => clearTimeout(debounce);
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    fetchCustomerDirectory();
+  }, [fetchCustomerDirectory]);
 
   const handleSortToggle = (field) => {
     if (sortBy === field) {
@@ -131,6 +148,7 @@ const Customers = () => {
 
       resetForm();
       fetchCustomers();
+      fetchCustomerDirectory();
     } catch (error) {
       const msg = error.response?.data?.message || 'Error saving customer';
       alert(msg);
@@ -158,6 +176,7 @@ const Customers = () => {
     try {
       await sln.delete(`/customers/${id}`);
       fetchCustomers();
+      fetchCustomerDirectory();
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting customer');
     }
@@ -170,6 +189,8 @@ const Customers = () => {
     setAltMobile(customer.altMobile || '');
     setAddress(customer.address);
     setPhotoPreview(customer.photoUrl || '');
+    setShowNameSuggestions(false);
+    setActiveNameSuggestion(-1);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -183,6 +204,8 @@ const Customers = () => {
     setAddress('');
     setPhotoFile(null);
     setPhotoPreview('');
+    setShowNameSuggestions(false);
+    setActiveNameSuggestion(-1);
     setErrors({});
   };
 
@@ -198,6 +221,53 @@ const Customers = () => {
         <AlertCircle size={12} /> {msg}
       </p>
     ) : null;
+
+  const normalizedName = name.trim().toLowerCase();
+  const nameSuggestions = normalizedName
+    ? customerDirectory
+        .filter((customer) => {
+          if (editingId && customer._id === editingId) return false;
+          return customer.name?.toLowerCase().includes(normalizedName);
+        })
+        .filter((customer, index, list) => index === list.findIndex((entry) => entry.name?.toLowerCase() === customer.name?.toLowerCase()))
+        .slice(0, 6)
+    : [];
+
+  const selectNameSuggestion = (customer) => {
+    setName(customer.name);
+    setShowNameSuggestions(false);
+    setActiveNameSuggestion(-1);
+    if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+  };
+
+  const handleNameSuggestionKeyDown = (e) => {
+    if (!nameSuggestions.length) return;
+
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault();
+      setShowNameSuggestions(true);
+      setActiveNameSuggestion((prev) => (prev + 1) % nameSuggestions.length);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault();
+      setShowNameSuggestions(true);
+      setActiveNameSuggestion((prev) => (prev <= 0 ? nameSuggestions.length - 1 : prev - 1));
+      return;
+    }
+
+    if (e.key === 'Enter' && activeNameSuggestion >= 0) {
+      e.preventDefault();
+      selectNameSuggestion(nameSuggestions[activeNameSuggestion]);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      setShowNameSuggestions(false);
+      setActiveNameSuggestion(-1);
+    }
+  };
 
   if (loading) {
     return (
@@ -229,13 +299,71 @@ const Customers = () => {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4" noValidate>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">{t('name')}</label>
-              <input
-                type="text"
-                className={`input-field py-2 ${errors.name ? 'border-red-400 focus:ring-red-300' : ''}`}
-                value={name}
-                onChange={e => { setName(e.target.value); if (errors.name) setErrors(p => ({ ...p, name: '' })); }}
-                placeholder="e.g. Ravi Kumar"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  className={`input-field py-2 pr-24 ${errors.name ? 'border-red-400 focus:ring-red-300' : ''}`}
+                  value={name}
+                  onChange={e => {
+                    setName(e.target.value);
+                    setShowNameSuggestions(true);
+                    setActiveNameSuggestion(-1);
+                    if (errors.name) setErrors(p => ({ ...p, name: '' }));
+                  }}
+                  onFocus={() => {
+                    setShowNameSuggestions(true);
+                    setActiveNameSuggestion(-1);
+                  }}
+                  onBlur={() => setTimeout(() => {
+                    setShowNameSuggestions(false);
+                    setActiveNameSuggestion(-1);
+                  }, 150)}
+                  onKeyDown={handleNameSuggestionKeyDown}
+                  placeholder="e.g. Ravi Kumar"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowNameSuggestions((prev) => !prev);
+                    setActiveNameSuggestion(-1);
+                  }}
+                >
+                  <span>Names</span>
+                  <ChevronDown size={14} className={`transition-transform ${showNameSuggestions ? 'rotate-180' : ''}`} />
+                </button>
+                {showNameSuggestions && nameSuggestions.length > 0 && (
+                  <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.16)]">
+                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      <span>Customer Suggestions</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-400">{nameSuggestions.length}</span>
+                    </div>
+                    {nameSuggestions.map((customer, index) => (
+                      <button
+                        key={customer._id}
+                        type="button"
+                        className={`flex w-full items-center justify-between border-l-2 px-3 py-2.5 text-left text-sm transition ${
+                          activeNameSuggestion === index
+                            ? 'border-primary-500 bg-primary-50 text-primary-900'
+                            : 'border-transparent text-slate-700 hover:bg-slate-50'
+                        }`}
+                        onMouseEnter={() => setActiveNameSuggestion(index)}
+                        onMouseDown={() => selectNameSuggestion(customer)}
+                      >
+                        <span className="font-medium">{customer.name}</span>
+                        <span className={`ml-3 rounded-full px-2 py-0.5 text-xs ${
+                          activeNameSuggestion === index ? 'bg-white text-primary-600' : 'bg-slate-100 text-slate-500'
+                        }`}>{customer.mobile}</span>
+                      </button>
+                    ))}
+                    <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-400">
+                      ArrowDown or Tab for next, Enter to select
+                    </div>
+                  </div>
+                )}
+              </div>
               <FieldError msg={errors.name} />
             </div>
 
