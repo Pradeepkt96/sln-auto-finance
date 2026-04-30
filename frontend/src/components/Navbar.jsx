@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Globe, Menu, X, Calculator, Users, FileText, LayoutDashboard, Lock, UserCircle } from 'lucide-react';
+import { Globe, Menu, X, Calculator, Users, FileText, LayoutDashboard, Lock, UserCircle } from 'lucide-react';
 import { useState } from 'react';
 
 const Navbar = () => {
@@ -78,13 +78,6 @@ const Navbar = () => {
                 {i18n.language === 'en' ? t('tamil') : t('english')}
               </span>
             </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-1 text-red-400 hover:text-red-300 transition"
-            >
-              <LogOut size={18} />
-              <span className="text-sm font-medium">{t('logout')}</span>
-            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -128,13 +121,7 @@ const Navbar = () => {
                 <Globe size={18} className="text-primary-400" />
                 <span>{i18n.language === 'en' ? t('tamil') : t('english')}</span>
               </button>
-              <button
-                onClick={() => { handleLogout(); setIsMenuOpen(false); }}
-                className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-red-400 hover:bg-slate-700"
-              >
-                <LogOut size={18} />
-                <span>{t('logout')}</span>
-              </button>
+
             </div>
           </div>
         </div>

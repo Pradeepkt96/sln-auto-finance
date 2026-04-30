@@ -27,6 +27,9 @@ const Login = () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('role', data.role);
       localStorage.setItem('mobile', data.mobile);
+      if (data.username) {
+        localStorage.setItem('username', data.username);
+      }
       if (data.language) {
         localStorage.setItem('language', data.language);
       }

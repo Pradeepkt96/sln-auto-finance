@@ -117,6 +117,7 @@ const loginUser = async (req, res) => {
     if (user && (await user.matchPassword(password))) {
       res.json({
         _id: user._id,
+        username: user.username,
         mobile: user.mobile,
         role: user.role,
         language: user.language,
@@ -127,6 +128,25 @@ const loginUser = async (req, res) => {
     }
   } catch (error) {
     console.error('Login error:', error.message);
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
+// @desc    Get current logged-in user profile
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({
+      _id: user._id,
+      username: user.username,
+      mobile: user.mobile,
+      role: user.role,
+      language: user.language,
+    });
+  } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
 };
@@ -187,6 +207,7 @@ module.exports = {
   requestRegisterOTP,
   verifyRegisterOTP,
   loginUser,
+  getMe,
   changePassword,
   updateProfile,
 };

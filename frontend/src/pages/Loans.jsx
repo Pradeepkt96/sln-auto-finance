@@ -332,12 +332,12 @@ const Loans = () => {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('loanDetails')}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('hpNumber')}</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('loanNumber')}</label>
                   <input type="text" className="input-field py-2"
                     value={hpNumber} onChange={e => setHpNumber(e.target.value)} required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">HPA Date</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('loanDate')}</label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
@@ -472,7 +472,7 @@ const Loans = () => {
             <input
               type="text"
               className="input-field py-2 pl-8 pr-2 text-xs h-full"
-              placeholder="HP No..."
+              placeholder={t('searchLoanNo')}
               value={searchHpNumber}
               onChange={e => setSearchHpNumber(e.target.value)}
             />
@@ -482,7 +482,7 @@ const Loans = () => {
             <input
               type="text"
               className="input-field py-2 pl-8 pr-2 text-xs h-full"
-              placeholder="HPA Date (dd/mm/yyyy)..."
+              placeholder={t('searchLoanDate')}
               value={searchHpaDate}
               onChange={e => setSearchHpaDate(e.target.value)}
             />
@@ -492,7 +492,7 @@ const Loans = () => {
             <input
               type="text"
               className="input-field py-2 pl-8 pr-2 text-xs h-full"
-              placeholder="Customer Name/Mobile..."
+              placeholder={t('searchCustomer')}
               value={searchCustomer}
               onChange={e => setSearchCustomer(e.target.value)}
             />
@@ -502,7 +502,7 @@ const Loans = () => {
             <input
               type="text"
               className="input-field py-2 pl-8 pr-2 text-xs h-full"
-              placeholder="Vehicle No/Make/Model..."
+              placeholder={t('searchVehicle')}
               value={searchVehicle}
               onChange={e => setSearchVehicle(e.target.value)}
             />
@@ -530,7 +530,7 @@ const Loans = () => {
                   onClick={() => handleSortToggle('hpNumber')}
                 >
                   <div className="flex items-center">
-                    {t('hpNumber')}
+                    {t('loanNumber')}
                     <SortIcon field="hpNumber" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -539,7 +539,7 @@ const Loans = () => {
                   onClick={() => handleSortToggle('hpaDate')}
                 >
                   <div className="flex items-center">
-                    HPA Date
+                    {t('loanDate')}
                     <SortIcon field="hpaDate" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -548,7 +548,7 @@ const Loans = () => {
                   onClick={() => handleSortToggle('customerReference')}
                 >
                   <div className="flex items-center">
-                    {t('customers')}
+                    {t('customerMobileName')}
                     <SortIcon field="customerReference" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>

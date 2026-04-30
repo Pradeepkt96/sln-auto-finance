@@ -23,6 +23,21 @@ const Profile = () => {
     navigate('/login');
   };
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data } = await sln.get('/auth/me');
+        if (data.username) {
+          setUsername(data.username);
+          localStorage.setItem('username', data.username);
+        }
+      } catch (error) {
+        console.error('Failed to fetch profile data', error);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   const handleUpdateProfile = async () => {
     setSaving(true);
     try {
