@@ -9,7 +9,6 @@ import {
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown, 
-  ChevronDown,
   X, 
   AlertCircle, 
   Edit2, 
@@ -302,7 +301,7 @@ const Customers = () => {
               <div className="relative">
                 <input
                   type="text"
-                  className={`input-field py-2 pr-24 ${errors.name ? 'border-red-400 focus:ring-red-300' : ''}`}
+                  className={`input-field py-2 ${errors.name ? 'border-red-400 focus:ring-red-300' : ''}`}
                   value={name}
                   onChange={e => {
                     setName(e.target.value);
@@ -322,45 +321,24 @@ const Customers = () => {
                   placeholder="e.g. Ravi Kumar"
                   autoComplete="off"
                 />
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setShowNameSuggestions((prev) => !prev);
-                    setActiveNameSuggestion(-1);
-                  }}
-                >
-                  <span>Names</span>
-                  <ChevronDown size={14} className={`transition-transform ${showNameSuggestions ? 'rotate-180' : ''}`} />
-                </button>
                 {showNameSuggestions && nameSuggestions.length > 0 && (
-                  <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.16)]">
-                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      <span>Customer Suggestions</span>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-400">{nameSuggestions.length}</span>
-                    </div>
+                  <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
                     {nameSuggestions.map((customer, index) => (
                       <button
                         key={customer._id}
                         type="button"
-                        className={`flex w-full items-center justify-between border-l-2 px-3 py-2.5 text-left text-sm transition ${
+                        className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
                           activeNameSuggestion === index
-                            ? 'border-primary-500 bg-primary-50 text-primary-900'
-                            : 'border-transparent text-slate-700 hover:bg-slate-50'
+                            ? 'bg-primary-50 text-primary-900'
+                            : 'text-slate-700 hover:bg-slate-50'
                         }`}
                         onMouseEnter={() => setActiveNameSuggestion(index)}
                         onMouseDown={() => selectNameSuggestion(customer)}
                       >
                         <span className="font-medium">{customer.name}</span>
-                        <span className={`ml-3 rounded-full px-2 py-0.5 text-xs ${
-                          activeNameSuggestion === index ? 'bg-white text-primary-600' : 'bg-slate-100 text-slate-500'
-                        }`}>{customer.mobile}</span>
+                        <span className="ml-3 text-xs text-slate-400">{customer.mobile}</span>
                       </button>
                     ))}
-                    <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-400">
-                      ArrowDown or Tab for next, Enter to select
-                    </div>
                   </div>
                 )}
               </div>

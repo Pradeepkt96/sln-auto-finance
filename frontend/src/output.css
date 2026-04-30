@@ -785,8 +785,8 @@ select.input-field{
   top: 0.75rem;
 }
 
-.right-2{
-  right: 0.5rem;
+.z-20{
+  z-index: 20;
 }
 
 .z-50{
@@ -795,10 +795,6 @@ select.input-field{
 
 .z-\[100\]{
   z-index: 100;
-}
-
-.z-20{
-  z-index: 20;
 }
 
 .mx-4{
@@ -844,6 +840,10 @@ select.input-field{
   margin-left: 0.25rem;
 }
 
+.ml-3{
+  margin-left: 0.75rem;
+}
+
 .ml-auto{
   margin-left: auto;
 }
@@ -874,10 +874,6 @@ select.input-field{
 
 .mt-8{
   margin-top: 2rem;
-}
-
-.ml-3{
-  margin-left: 0.75rem;
 }
 
 .block{
@@ -1253,10 +1249,6 @@ select.input-field{
   border-top-width: 4px;
 }
 
-.border-l-2{
-  border-left-width: 2px;
-}
-
 .border-amber-200{
   --tw-border-opacity: 1;
   border-color: rgb(253 230 138 / var(--tw-border-opacity, 1));
@@ -1348,10 +1340,6 @@ select.input-field{
 .border-white{
   --tw-border-opacity: 1;
   border-color: rgb(255 255 255 / var(--tw-border-opacity, 1));
-}
-
-.border-transparent{
-  border-color: transparent;
 }
 
 .border-t-primary-500{
@@ -1627,11 +1615,6 @@ select.input-field{
   padding-bottom: 1rem;
 }
 
-.py-2\.5{
-  padding-top: 0.625rem;
-  padding-bottom: 0.625rem;
-}
-
 .pb-4{
   padding-bottom: 1rem;
 }
@@ -1678,10 +1661,6 @@ select.input-field{
 
 .pt-5{
   padding-top: 1.25rem;
-}
-
-.pr-24{
-  padding-right: 6rem;
 }
 
 .text-left{
@@ -1743,10 +1722,6 @@ select.input-field{
   line-height: 1rem;
 }
 
-.text-\[11px\]{
-  font-size: 11px;
-}
-
 .font-bold{
   font-weight: 700;
 }
@@ -1795,10 +1770,6 @@ select.input-field{
   letter-spacing: 0.1em;
 }
 
-.tracking-\[0\.18em\]{
-  letter-spacing: 0.18em;
-}
-
 .text-amber-600{
   --tw-text-opacity: 1;
   color: rgb(217 119 6 / var(--tw-text-opacity, 1));
@@ -1842,6 +1813,11 @@ select.input-field{
 .text-primary-600{
   --tw-text-opacity: 1;
   color: rgb(13 148 136 / var(--tw-text-opacity, 1));
+}
+
+.text-primary-900{
+  --tw-text-opacity: 1;
+  color: rgb(19 78 74 / var(--tw-text-opacity, 1));
 }
 
 .text-red-500{
@@ -1923,11 +1899,6 @@ select.input-field{
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
-.text-primary-900{
-  --tw-text-opacity: 1;
-  color: rgb(19 78 74 / var(--tw-text-opacity, 1));
-}
-
 .underline{
   text-decoration-line: underline;
 }
@@ -1957,12 +1928,6 @@ select.input-field{
 .shadow-xl{
   --tw-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
-
-.shadow-\[0_18px_48px_rgba\(15\2c 23\2c 42\2c 0\.16\)\]{
-  --tw-shadow: 0 18px 48px rgba(15,23,42,0.16);
-  --tw-shadow-colored: 0 18px 48px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
@@ -2218,11 +2183,6 @@ select.input-field{
 .hover\:text-white:hover{
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
-}
-
-.hover\:text-slate-700:hover{
-  --tw-text-opacity: 1;
-  color: rgb(51 65 85 / var(--tw-text-opacity, 1));
 }
 
 .hover\:underline:hover{

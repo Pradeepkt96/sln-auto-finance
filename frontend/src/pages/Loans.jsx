@@ -522,7 +522,7 @@ const Loans = () => {
                   <div className="relative">
                     <input
                       type="text"
-                      className={`input-field py-2 pr-24 ${errors.make ? 'border-red-400 focus:ring-red-300' : ''}`}
+                      className={`input-field py-2 ${errors.make ? 'border-red-400 focus:ring-red-300' : ''}`}
                       value={make}
                       onChange={e => {
                         setMake(e.target.value);
@@ -542,32 +542,16 @@ const Loans = () => {
                       placeholder="e.g. Honda"
                       autoComplete="off"
                     />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setShowMakeSuggestions((prev) => !prev);
-                        setActiveMakeSuggestion(-1);
-                      }}
-                    >
-                      <span>Makes</span>
-                      <ChevronDownIcon size={14} className={`transition-transform duration-150 ${showMakeSuggestions ? 'rotate-180' : ''}`} />
-                    </button>
                     {showMakeSuggestions && makeSuggestions.length > 0 && (
-                      <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.16)]">
-                        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          <span>Vehicle Makes</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-400">{makeSuggestions.length}</span>
-                        </div>
+                      <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
                         {makeSuggestions.map((value, index) => (
                           <button
                             key={value}
                             type="button"
-                            className={`block w-full border-l-2 px-3 py-2.5 text-left text-sm font-medium transition ${
+                            className={`block w-full px-3 py-2 text-left text-sm font-medium transition ${
                               activeMakeSuggestion === index
-                                ? 'border-primary-500 bg-primary-50 text-primary-900'
-                                : 'border-transparent text-slate-700 hover:bg-slate-50'
+                                ? 'bg-primary-50 text-primary-900'
+                                : 'text-slate-700 hover:bg-slate-50'
                             }`}
                             onMouseEnter={() => setActiveMakeSuggestion(index)}
                             onMouseDown={() => selectMakeSuggestion(value)}
@@ -575,9 +559,6 @@ const Loans = () => {
                             {value}
                           </button>
                         ))}
-                        <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-400">
-                          ArrowDown or Tab for next, Enter to select
-                        </div>
                       </div>
                     )}
                   </div>
