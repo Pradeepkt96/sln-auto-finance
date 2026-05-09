@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import sln from '../api';
 import { formatDate } from '../utils/dateUtils';
+import { transliterateTamilName } from '../utils/tamilTransliteration';
 import { 
   PlusCircle, 
   Search, 
@@ -413,15 +414,31 @@ const Customers = () => {
 
       {/* Actions Row */}
       <div className="flex flex-col sm:flex-row gap-3 items-center">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            className="input-field py-2 pl-9 pr-8 text-sm"
-            placeholder="Search by name, mobile or address..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+        <div className="flex-1 max-w-md w-full flex gap-2">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              className="input-field py-2 pl-9 pr-8 text-sm"
+              placeholder="Search by name, mobile or address..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => fetchCustomers()}
+            className="py-2 px-4 rounded-lg text-white bg-slate-800 hover:bg-slate-700 text-sm font-medium shadow-sm whitespace-nowrap transition-colors"
+          >
+            {t('search')}
+          </button>
         </div>
         
         <button
@@ -493,7 +510,12 @@ const Customers = () => {
                           <div className="text-slate-400 text-xs">No Photo</div>
                         )}
                       </div>
-                      <div>{customer.name}</div>
+                      <div className="truncate max-w-[200px]">
+                        <div className="truncate">{customer.name}</div>
+                        <div className="text-xs text-slate-500 font-normal truncate mt-0.5" title={transliterateTamilName(customer.name)}>
+                          {transliterateTamilName(customer.name)}
+                        </div>
+                      </div>
                     </td>
                     <td className="p-4 text-sm">
                       <div>{customer.mobile}</div>
@@ -501,7 +523,14 @@ const Customers = () => {
                         <div className="text-[10px] text-slate-400 font-medium">Alt: {customer.altMobile}</div>
                       )}
                     </td>
-                    <td className="p-4 text-sm text-slate-600 max-w-xs truncate">{customer.address}</td>
+                    <td className="p-4 text-sm text-slate-600 max-w-xs truncate">
+                      <div className="truncate" title={customer.address}>{customer.address}</div>
+                      {customer.address && (
+                        <div className="text-xs text-slate-400 mt-0.5 truncate" title={transliterateTamilName(customer.address)}>
+                          {transliterateTamilName(customer.address)}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4">
                       <div className="flex flex-wrap gap-1">
                         {customer.loanNumbers && customer.loanNumbers.length > 0 ? (

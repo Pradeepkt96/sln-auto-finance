@@ -128,7 +128,13 @@ const transliterateWord = (word) => {
       continue;
     }
 
-    const base = CONSONANTS[consonantToken];
+    let base = CONSONANTS[consonantToken];
+
+    // Use 'ன' (\u0BA9) for 'n' when it's not the first letter
+    if (consonantToken === 'n' && index > 0) {
+      base = '\u0BA9';
+    }
+
     const nextIndex = index + consonantToken.length;
     const nextVowel = getTokenAt(lower, nextIndex, VOWEL_TOKENS);
 

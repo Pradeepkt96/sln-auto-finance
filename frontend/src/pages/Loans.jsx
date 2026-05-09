@@ -595,47 +595,73 @@ const Loans = () => {
 
       {/* Search & Filter & Create */}
       <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              className="input-field py-2 pl-8 pr-8 text-xs h-full"
               placeholder={t('searchLoanNo')}
               value={searchHpNumber}
               onChange={e => setSearchHpNumber(e.target.value)}
             />
+            {searchHpNumber && (
+              <button onClick={() => setSearchHpNumber('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              className="input-field py-2 pl-8 pr-8 text-xs h-full"
               placeholder={t('searchLoanDate')}
               value={searchHpaDate}
               onChange={e => setSearchHpaDate(e.target.value)}
             />
+            {searchHpaDate && (
+              <button onClick={() => setSearchHpaDate('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              className="input-field py-2 pl-8 pr-8 text-xs h-full"
               placeholder={t('searchCustomer')}
               value={searchCustomer}
               onChange={e => setSearchCustomer(e.target.value)}
             />
+            {searchCustomer && (
+              <button onClick={() => setSearchCustomer('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              className="input-field py-2 pl-8 pr-2 text-xs h-full"
+              className="input-field py-2 pl-8 pr-8 text-xs h-full"
               placeholder={t('searchVehicle')}
               value={searchVehicle}
               onChange={e => setSearchVehicle(e.target.value)}
             />
+            {searchVehicle && (
+              <button onClick={() => setSearchVehicle('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
           </div>
+          <button
+            onClick={() => fetchLoans()}
+            className="py-2 px-4 rounded-lg text-white bg-slate-800 hover:bg-slate-700 text-sm font-medium shadow-sm flex items-center justify-center w-full transition-colors"
+          >
+            {t('search')}
+          </button>
           <button
             onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
             className="btn-primary w-full flex items-center justify-center py-2 px-4 shadow-sm"

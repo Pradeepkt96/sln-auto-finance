@@ -60,6 +60,7 @@ const translations = {
       receiptNo: 'Receipt No.',
       penalty: 'Penalty',
       paymentMode: 'Payment Mode',
+      search: 'Search',
     },
   },
   ta: {
@@ -123,6 +124,7 @@ const translations = {
       receiptNo: 'ரசீது எண்',
       penalty: 'அபராதம்',
       paymentMode: 'செலுத்தும் முறை',
+      search: 'தேடு',
     },
   },
 };

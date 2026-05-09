@@ -856,6 +856,10 @@ select.input-field{
   margin-right: 1rem;
 }
 
+.mt-0\.5{
+  margin-top: 0.125rem;
+}
+
 .mt-1{
   margin-top: 0.25rem;
 }
@@ -1006,6 +1010,10 @@ select.input-field{
 
 .max-w-7xl{
   max-width: 80rem;
+}
+
+.max-w-\[200px\]{
+  max-width: 200px;
 }
 
 .max-w-\[95\%\]{
@@ -1190,6 +1198,10 @@ select.input-field{
 .truncate{
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whitespace-nowrap{
   white-space: nowrap;
 }
 
@@ -2323,5 +2335,9 @@ select.input-field{
 
   .lg\:grid-cols-5{
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-6{
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
