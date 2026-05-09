@@ -26,7 +26,7 @@ const Navbar = () => {
   };
 
   const navLinks = [
-    { name: t('dashboard'), path: '/dashboard', icon: LayoutDashboard },
+    // { name: t('dashboard'), path: '/dashboard', icon: LayoutDashboard },
     { name: t('emiCalculator'), path: '/emi-calculator', icon: Calculator },
     { name: t('customers'), path: '/customers', icon: Users },
     { name: t('loans'), path: '/loans', icon: FileText },
@@ -54,11 +54,10 @@ const Navbar = () => {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 group ${
-                    isActive 
-                      ? 'bg-primary-500/15 text-primary-400 font-bold shadow-sm border border-primary-500/20' 
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 group ${isActive
+                      ? 'bg-primary-500/15 text-primary-400 font-bold shadow-sm border border-primary-500/20'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
+                    }`}
                 >
                   <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
                   <span className="text-sm tracking-wide">{link.name}</span>
@@ -103,9 +102,8 @@ const Navbar = () => {
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md ${
-                    location.pathname === link.path ? 'bg-primary-900/50 text-primary-400' : 'text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md ${location.pathname === link.path ? 'bg-primary-900/50 text-primary-400' : 'text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <Icon size={18} />
                   <span>{link.name}</span>

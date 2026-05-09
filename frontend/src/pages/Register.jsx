@@ -7,14 +7,14 @@ import { UserPlus, Phone, Lock, Hash, Eye, EyeOff, User } from 'lucide-react';
 const Register = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  
+
   const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify & Register
   const [mobile, setMobile] = useState('');
   const [username, setUsername] = useState('');
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,14 +51,14 @@ const Register = () => {
         password,
         language: i18n.language,
       });
-      
+
       // Auto login after successful registration
       localStorage.setItem('token', data.token);
       localStorage.setItem('role', data.role);
       localStorage.setItem('mobile', data.mobile);
       localStorage.setItem('language', data.language);
-      
-      navigate('/dashboard');
+
+      navigate('/loans');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     }
@@ -78,7 +78,7 @@ const Register = () => {
             {error}
           </div>
         )}
-        
+
         {message && (
           <div className="bg-teal-50 text-teal-700 p-3 rounded-lg text-sm mb-6 border border-teal-100">
             {message}

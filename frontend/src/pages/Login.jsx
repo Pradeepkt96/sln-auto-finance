@@ -23,7 +23,7 @@ const Login = () => {
         mobile,
         password,
       });
-      
+
       localStorage.setItem('token', data.token);
       localStorage.setItem('role', data.role);
       localStorage.setItem('mobile', data.mobile);
@@ -33,8 +33,8 @@ const Login = () => {
       if (data.language) {
         localStorage.setItem('language', data.language);
       }
-      
-      navigate('/dashboard');
+
+      navigate('/loans');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     }
@@ -100,12 +100,12 @@ const Login = () => {
             disabled={loading}
           >
             {loading ? (
-               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-               <>
-                 <LogIn size={20} className="mr-2" />
-                 {t('signIn')}
-               </>
+              <>
+                <LogIn size={20} className="mr-2" />
+                {t('signIn')}
+              </>
             )}
           </button>
         </form>
