@@ -10,8 +10,15 @@ const logDebug = (msg, data) => {
 // @access  Private
 const getLoans = async (req, res) => {
   try {
-    const { hpNumber, hpaDate, customer, vehicleNumber, status, sortBy, sortOrder } = req.query;
+    const { hpNumber, hpaDate, customer, vehicleNumber, status, sortBy, sortOrder, page, pageSize } = req.query;
     const query = {};
+    const parsedPage = parseInt(page, 10);
+    const parsedPageSize = parseInt(pageSize, 10);
+    const allowedPageSizes = [10, 20, 30];
+    const effectivePage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const effectivePageSize = allowedPageSizes.includes(parsedPageSize) ? parsedPageSize : 10;
+    const skip = (effectivePage - 1) * effectivePageSize;
+    const shouldPaginate = !isNaN(parsedPage) || !isNaN(parsedPageSize);
 
     if (status && ['active', 'closed', 'reloan', 'collection'].includes(status)) {
       query.status = status;
@@ -98,12 +105,36 @@ const getLoans = async (req, res) => {
     }
 
     pipeline.push(
-      { $sort: { [sortField]: sortDirection, _id: 1 } },
-      { $project: { hpaDateDisplay: 0 } }
+      { $sort: { [sortField]: sortDirection, _id: 1 } }
     );
 
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const totalCountResult = await Loan.aggregate(countPipeline).collation({ locale: 'en_US', numericOrdering: true });
+    const totalRecords = totalCountResult.length > 0 ? totalCountResult[0].total : 0;
+
+    if (shouldPaginate) {
+      pipeline.push(
+        { $skip: skip },
+        { $limit: effectivePageSize }
+      );
+    }
+
+    pipeline.push({ $project: { hpaDateDisplay: 0 } });
+
     const loans = await Loan.aggregate(pipeline).collation({ locale: 'en_US', numericOrdering: true });
-    res.json(loans);
+    if (!shouldPaginate) {
+      return res.json(loans);
+    }
+
+    res.json({
+      items: loans,
+      meta: {
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalPages: Math.ceil(totalRecords / effectivePageSize),
+        totalRecords,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }

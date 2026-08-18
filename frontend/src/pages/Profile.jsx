@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, LogOut, Phone, Shield, Save, Edit2 } from 'lucide-react';
 import sln from '../api';
+import { toast } from '../utils/toast';
 
 const Profile = () => {
   const { t } = useTranslation();
@@ -44,9 +45,9 @@ const Profile = () => {
       const { data } = await sln.put('/auth/profile', { username });
       localStorage.setItem('username', data.username);
       setIsEditing(false);
-      alert('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update profile');
+      toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import sln from '../api';
 import { formatDate } from '../utils/dateUtils';
 import { transliterateTamilName } from '../utils/tamilTransliteration';
+import { toast } from '../utils/toast';
 import { 
   PlusCircle, 
   Search, 
@@ -42,10 +43,23 @@ const Customers = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // Search / Sort state
+  // Search / Sort / Pagination state
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('slNo');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  // Generate dynamic page sizes based on total records
+  const getPageSizes = () => {
+    if (totalRecords <= 10) return [10];
+    if (totalRecords <= 20) return [10, 20];
+    if (totalRecords <= 50) return [10, 20, 30, 50];
+    return [10, 20, 30, 50, 100];
+  };
+  const PAGE_SIZES = getPageSizes();
 
   // Form State
   const [name, setName] = useState('');
@@ -72,15 +86,29 @@ const Customers = () => {
       if (search) params.append('search', search);
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('page', page);
+      params.append('pageSize', pageSize);
 
       const { data } = await sln.get(`/customers?${params.toString()}`);
-      setCustomers(data);
+      if (Array.isArray(data)) {
+        setCustomers(data);
+        setTotalPages(1);
+        setTotalRecords(data.length);
+      } else {
+        setCustomers(data.items || []);
+        setTotalPages(data.meta?.totalPages || 1);
+        setTotalRecords(data.meta?.totalRecords || 0);
+      }
     } catch (error) {
       console.error('Failed to fetch customers', error);
     } finally {
       setLoading(false);
     }
-  }, [search, sortBy, sortOrder]);
+  }, [search, sortBy, sortOrder, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, sortBy, sortOrder, pageSize]);
 
   const fetchCustomerDirectory = useCallback(async () => {
     try {
@@ -151,7 +179,7 @@ const Customers = () => {
       fetchCustomerDirectory();
     } catch (error) {
       const msg = error.response?.data?.message || 'Error saving customer';
-      alert(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -175,10 +203,11 @@ const Customers = () => {
 
     try {
       await sln.delete(`/customers/${id}`);
+      toast.success('Customer deleted successfully');
       fetchCustomers();
       fetchCustomerDirectory();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting customer');
+      toast.error(error.response?.data?.message || 'Error deleting customer');
     }
   };
 
@@ -571,6 +600,48 @@ const Customers = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border border-t-0 border-slate-100 rounded-b-xl">
+          <div className="text-sm text-slate-600">
+            Showing {(customers.length > 0 ? (page - 1) * pageSize + 1 : 0)}
+            {' - '}
+            {(customers.length > 0 ? (page - 1) * pageSize + customers.length : 0)}
+            {' of '}
+            {totalRecords}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <label htmlFor="customer-page-size" className="font-medium text-slate-600">Rows per page</label>
+              <select
+                id="customer-page-size"
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="page-size-select"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-slate-600">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

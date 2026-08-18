@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import sln from '../api';
 import { formatDate, toDisplayInputDate, parseDisplayDate } from '../utils/dateUtils';
 import { transliterateTamilName } from '../utils/tamilTransliteration';
+import { toast } from '../utils/toast';
 import {
   PlusCircle,
   Info,
@@ -53,7 +54,7 @@ const Loans = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // Search / Filter / Sort
+  // Search / Filter / Sort / Pagination
   const [searchHpNumber, setSearchHpNumber] = useState('');
   const [searchHpaDate, setSearchHpaDate] = useState('');
   const [searchCustomer, setSearchCustomer] = useState('');
@@ -61,6 +62,19 @@ const Loans = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [sortBy, setSortBy] = useState('hpNumber');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  // Generate dynamic page sizes based on total records
+  const getPageSizes = () => {
+    if (totalRecords <= 10) return [10];
+    if (totalRecords <= 20) return [10, 20];
+    if (totalRecords <= 50) return [10, 20, 30, 50];
+    return [10, 20, 30, 50, 100];
+  };
+  const PAGE_SIZES = getPageSizes();
 
   // Inline status change
   const [changingStatus, setChangingStatus] = useState(null);
@@ -149,22 +163,31 @@ const Loans = () => {
       if (searchHpaDate) params.append('hpaDate', searchHpaDate);
       if (searchCustomer) params.append('customer', searchCustomer);
       if (searchVehicle) params.append('vehicleNumber', searchVehicle);
-      
       if (filterStatus) params.append('status', filterStatus);
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('page', page);
+      params.append('pageSize', pageSize);
 
       const { data } = await sln.get(`/loans?${params.toString()}`);
-      setLoans(data.map((loan) => ({
+      const loansData = Array.isArray(data) ? data : data.items || [];
+      setLoans(loansData.map((loan) => ({
         ...loan,
         customerReference: localizeCustomerRecord(loan.customerReference),
       })));
+      if (!Array.isArray(data) && data.meta) {
+        setTotalPages(data.meta.totalPages || 1);
+        setTotalRecords(data.meta.totalRecords || loansData.length);
+      } else {
+        setTotalPages(1);
+        setTotalRecords(loansData.length);
+      }
     } catch (error) {
       console.error('Failed to fetch loans', error);
     } finally {
       setLoading(false);
     }
-  }, [localizeCustomerRecord, searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder]);
+  }, [localizeCustomerRecord, searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder, page, pageSize]);
 
   const fetchVehicleMakeDirectory = useCallback(async () => {
     try {
@@ -191,6 +214,10 @@ const Loans = () => {
     const debounce = setTimeout(() => fetchLoans(), 300);
     return () => clearTimeout(debounce);
   }, [fetchLoans]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder, pageSize]);
 
   const handleSortToggle = (field) => {
     if (sortBy === field) {
@@ -261,9 +288,10 @@ const Loans = () => {
       fetchLoans();
       fetchCustomers();
       fetchVehicleMakeDirectory();
+      toast.success('Loan saved successfully');
     } catch (error) {
       console.error('Failed to save loan', error);
-      alert(error.response?.data?.message || 'Error saving loan');
+      toast.error(error.response?.data?.message || 'Error saving loan');
     }
   };
 
@@ -273,11 +301,12 @@ const Loans = () => {
 
     try {
       await sln.delete(`/loans/${id}`);
+      toast.success('Loan deleted successfully');
       fetchLoans();
       fetchCustomers();
       fetchVehicleMakeDirectory();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting loan');
+      toast.error(error.response?.data?.message || 'Error deleting loan');
     }
   };
 
@@ -306,9 +335,10 @@ const Loans = () => {
     try {
       const { data } = await sln.put(`/loans/${loanId}/status`, { status: newStatus });
       setLoans(prev => prev.map(l => l._id === loanId ? { ...l, status: data.status } : l));
+      toast.success('Status updated successfully');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Failed to update status';
-      alert(`Error ${error.response?.status || ''}: ${msg}`);
+      toast.error(`Error ${error.response?.status || ''}: ${msg}`);
     } finally {
       setChangingStatus(null);
     }
@@ -731,7 +761,7 @@ const Loans = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loans.length === 0 ? (
-                <tr><td colSpan="6" className="p-10 text-center text-slate-400">No loans found</td></tr>
+                <tr><td colSpan="7" className="p-10 text-center text-slate-400">No loans found</td></tr>
               ) : (
                 loans.map(loan => (
                   <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
@@ -840,6 +870,48 @@ const Loans = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border border-t-0 border-slate-100 rounded-b-xl">
+          <div className="text-sm text-slate-600">
+            Showing {(loans.length > 0 ? (page - 1) * pageSize + 1 : 0)}
+            {' - '}
+            {(loans.length > 0 ? (page - 1) * pageSize + loans.length : 0)}
+            {' of '}
+            {totalRecords}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <label htmlFor="loan-page-size" className="font-medium text-slate-600">Rows per page</label>
+              <select
+                id="loan-page-size"
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="page-size-select"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page <= 1}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-slate-600">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

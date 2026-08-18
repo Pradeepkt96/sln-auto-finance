@@ -8,8 +8,17 @@ const streamifier = require('streamifier');
 // @access  Private
 const getCustomers = async (req, res) => {
   try {
-    const { search, sortBy, sortOrder, includeLoanNumbers = 'true' } = req.query;
+    const { search, sortBy, sortOrder, includeLoanNumbers = 'true', page, pageSize } = req.query;
     const shouldIncludeLoanNumbers = includeLoanNumbers !== 'false';
+    const parsedPage = parseInt(page, 10);
+    const parsedPageSize = parseInt(pageSize, 10);
+    const shouldPaginate = !isNaN(parsedPage) || !isNaN(parsedPageSize);
+    const effectivePage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const allowedPageSizes = [10, 20, 30];
+    const effectivePageSize = shouldPaginate
+      ? (allowedPageSizes.includes(parsedPageSize) ? parsedPageSize : 10)
+      : null;
+    const skip = shouldPaginate ? (effectivePage - 1) * effectivePageSize : 0;
 
     let query = {};
 
@@ -35,10 +44,35 @@ const getCustomers = async (req, res) => {
       sort[field] = sortOrder === 'asc' ? 1 : -1;
     }
 
-    const customers = await Customer.find(query).sort(sort).lean();
+    let customers;
+    let totalRecords = 0;
+    if (shouldPaginate && !isSpecialSort) {
+      totalRecords = await Customer.countDocuments(query);
+      customers = await Customer.find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(effectivePageSize)
+        .lean();
+    } else {
+      customers = await Customer.find(query).sort(sort).lean();
+      if (shouldPaginate) {
+        totalRecords = customers.length;
+      }
+    }
 
     if (!shouldIncludeLoanNumbers) {
-      return res.json(customers);
+      if (!shouldPaginate) {
+        return res.json(customers);
+      }
+      return res.json({
+        items: customers,
+        meta: {
+          page: effectivePage,
+          pageSize: effectivePageSize,
+          totalPages: Math.ceil(totalRecords / effectivePageSize),
+          totalRecords,
+        },
+      });
     }
 
     const customerIds = customers.map((customer) => customer._id);
@@ -75,7 +109,19 @@ const getCustomers = async (req, res) => {
       });
     }
 
-    res.json(customersWithLoans);
+    if (!shouldPaginate) {
+      return res.json(customersWithLoans);
+    }
+
+    return res.json({
+      items: customersWithLoans.slice(skip, skip + effectivePageSize),
+      meta: {
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalPages: Math.ceil(totalRecords / effectivePageSize),
+        totalRecords,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }

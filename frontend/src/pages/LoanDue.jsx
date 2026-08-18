@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import sln from '../api';
+import { toast } from '../utils/toast';
 import { formatDate, toDisplayInputDate, parseDisplayDate } from '../utils/dateUtils';
 import {
   ArrowLeft,
@@ -139,7 +140,7 @@ const LoanDue = () => {
 
   const handleSaveDueDates = async () => {
     const iso = parseDisplayDate(firstDueDate);
-    if (!iso) return alert('Enter a valid first due date (dd/mm/yyyy)');
+    if (!iso) return toast.warning('Enter a valid first due date (dd/mm/yyyy)');
     setSavingDues(true);
     try {
       const { data } = await sln.put(`/loans/${id}/recalculate-dues`, { firstDueDate: iso });
@@ -148,8 +149,9 @@ const LoanDue = () => {
       data.forEach(p => { dd[p._id] = formatDate(p.dueDate); });
       setDisplayDueDates(dd);
       setDueDatesModified(false);
+      toast.success('Due dates saved successfully');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to save due dates');
+      toast.error(err.response?.data?.message || 'Failed to save due dates');
     } finally {
       setSavingDues(false);
     }
@@ -189,8 +191,9 @@ const LoanDue = () => {
           status  : data.status,
         },
       }));
+      toast.success('Payment updated successfully');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update payment');
+      toast.error(err.response?.data?.message || 'Failed to update payment');
     } finally {
       setUpdatingId(null);
     }
