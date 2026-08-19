@@ -52,14 +52,10 @@ const Customers = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  // Generate dynamic page sizes based on total records
-  const getPageSizes = () => {
-    if (totalRecords <= 10) return [10];
-    if (totalRecords <= 20) return [10, 20];
-    if (totalRecords <= 50) return [10, 20, 30, 50];
-    return [10, 20, 30, 50, 100];
-  };
-  const PAGE_SIZES = getPageSizes();
+  const PAGE_SIZES = [10, 20, 30, 50, 100]
+    .filter((size) => size <= totalRecords || totalRecords === 0)
+    .concat(totalRecords > 0 && ![10, 20, 30, 50, 100].includes(totalRecords) ? totalRecords : [])
+    .sort((a, b) => a - b);
 
   // Form State
   const [name, setName] = useState('');
@@ -109,6 +105,12 @@ const Customers = () => {
   useEffect(() => {
     setPage(1);
   }, [search, sortBy, sortOrder, pageSize]);
+
+  useEffect(() => {
+    if (totalRecords > 0 && !PAGE_SIZES.includes(pageSize)) {
+      setPageSize(PAGE_SIZES[0]);
+    }
+  }, [totalRecords, pageSize, PAGE_SIZES]);
 
   const fetchCustomerDirectory = useCallback(async () => {
     try {
@@ -566,7 +568,7 @@ const Customers = () => {
                           customer.loanNumbers.map((loanObj) => (
                             <Link 
                               key={loanObj.hpNumber} 
-                              to={`/loans?search=${loanObj.hpNumber}`}
+                              to={`/loans?hpNumber=${encodeURIComponent(loanObj.hpNumber)}`}
                               className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors"
                             >
                               {loanObj.hpNumber} {loanObj.hpaDate ? `(${formatDate(loanObj.hpaDate)})` : ''} <ExternalLink size={8} className="ml-1" />
@@ -611,19 +613,6 @@ const Customers = () => {
             {totalRecords}
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-slate-700">
-              <label htmlFor="customer-page-size" className="font-medium text-slate-600">Rows per page</label>
-              <select
-                id="customer-page-size"
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-                className="page-size-select"
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
@@ -640,6 +629,19 @@ const Customers = () => {
               >
                 Next
               </button>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <label htmlFor="customer-page-size" className="font-medium text-slate-600">Customers per page</label>
+              <select
+                id="customer-page-size"
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="page-size-select"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

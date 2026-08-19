@@ -252,6 +252,7 @@
   border-radius: 6px;
   background-color: #ffffff;
   color: #334155;
+  color-scheme: light;
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -311,31 +312,3 @@
   opacity: 0.6;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .page-size-select {
-    background-color: #1e293b;
-    border-color: #334155;
-    color: #e2e8f0;
-  }
-
-  .page-size-select:hover {
-    background-color: #0f172a;
-    border-color: #475569;
-  }
-
-  .page-size-select:focus {
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-  }
-
-  .page-size-select option {
-    background-color: #1e293b;
-    color: #e2e8f0;
-  }
-
-  .page-size-select option:checked {
-    background-color: #3b82f6 !important;
-    color: white !important;
-  }
-}

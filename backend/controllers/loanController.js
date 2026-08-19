@@ -14,7 +14,7 @@ const getLoans = async (req, res) => {
     const query = {};
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
-    const allowedPageSizes = [10, 20, 30];
+    const allowedPageSizes = [10, 20, 30, 50, 100];
     const effectivePage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const effectivePageSize = allowedPageSizes.includes(parsedPageSize) ? parsedPageSize : 10;
     const skip = (effectivePage - 1) * effectivePageSize;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import sln from '../api';
 import { formatDate, toDisplayInputDate, parseDisplayDate } from '../utils/dateUtils';
 import { transliterateTamilName } from '../utils/tamilTransliteration';
@@ -46,6 +46,7 @@ const SortIcon = ({ field, sortBy, sortOrder }) => {
 const Loans = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loans, setLoans] = useState([]);
   const [vehicleMakeDirectory, setVehicleMakeDirectory] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -55,7 +56,7 @@ const Loans = () => {
   const [editingId, setEditingId] = useState(null);
 
   // Search / Filter / Sort / Pagination
-  const [searchHpNumber, setSearchHpNumber] = useState('');
+  const [searchHpNumber, setSearchHpNumber] = useState(() => searchParams.get('hpNumber') || '');
   const [searchHpaDate, setSearchHpaDate] = useState('');
   const [searchCustomer, setSearchCustomer] = useState('');
   const [searchVehicle, setSearchVehicle] = useState('');
@@ -67,14 +68,10 @@ const Loans = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  // Generate dynamic page sizes based on total records
-  const getPageSizes = () => {
-    if (totalRecords <= 10) return [10];
-    if (totalRecords <= 20) return [10, 20];
-    if (totalRecords <= 50) return [10, 20, 30, 50];
-    return [10, 20, 30, 50, 100];
-  };
-  const PAGE_SIZES = getPageSizes();
+  const PAGE_SIZES = [10, 20, 30, 50, 100]
+    .filter((size) => size <= totalRecords || totalRecords === 0)
+    .concat(totalRecords > 0 && ![10, 20, 30, 50, 100].includes(totalRecords) ? totalRecords : [])
+    .sort((a, b) => a - b);
 
   // Inline status change
   const [changingStatus, setChangingStatus] = useState(null);
@@ -218,6 +215,12 @@ const Loans = () => {
   useEffect(() => {
     setPage(1);
   }, [searchHpNumber, searchHpaDate, searchCustomer, searchVehicle, filterStatus, sortBy, sortOrder, pageSize]);
+
+  useEffect(() => {
+    if (totalRecords > 0 && !PAGE_SIZES.includes(pageSize)) {
+      setPageSize(PAGE_SIZES[0]);
+    }
+  }, [totalRecords, pageSize, PAGE_SIZES]);
 
   const handleSortToggle = (field) => {
     if (sortBy === field) {
@@ -707,7 +710,16 @@ const Loans = () => {
       {/* Loans Table */}
       <div className="card p-0 overflow-hidden shadow-sm border-slate-100">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[1250px] text-left border-collapse table-fixed">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[9%]" />
+              <col className="w-[21%]" />
+              <col className="w-[19%]" />
+              <col className="w-[19%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                 <th
@@ -715,7 +727,7 @@ const Loans = () => {
                   onClick={() => handleSortToggle('hpNumber')}
                 >
                   <div className="flex items-center">
-                    {t('loanNumber')}
+                    HP no.
                     <SortIcon field="hpNumber" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -765,13 +777,13 @@ const Loans = () => {
               ) : (
                 loans.map(loan => (
                   <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono tracking-wide">{loan.hpNumber}</span>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <div className="text-sm text-slate-600">{formatDate(loan.hpaDate)}</div>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
                           {loan.customerReference?.photoUrl ? (
@@ -791,15 +803,15 @@ const Loans = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <div className="font-medium text-slate-700">{loan.vehicleNumber}</div>
                       <div className="text-xs text-slate-400">{loan.make} {loan.vehicleModel}</div>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <div className="font-bold text-primary-600">₹ {loan.emiAmount?.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">EMI</span></div>
                       <div className="text-[10px] text-slate-500">₹ {loan.loanAmount?.toLocaleString()} Total • {loan.installments} Months</div>
                     </td>
-                    <td className="p-4 relative" ref={activePickerId === loan._id ? dropdownRef : null}>
+                    <td className="p-4 relative align-top whitespace-nowrap" ref={activePickerId === loan._id ? dropdownRef : null}>
                       {
                         (()=>{
                           const style = STATUS_STYLES[loan.status] || STATUS_STYLES.active;
@@ -807,7 +819,7 @@ const Loans = () => {
                             <button
                               onClick={() => setActivePickerId(activePickerId === loan._id ? null : loan._id)}
                               disabled={changingStatus === loan._id}
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all shadow-sm
+                              className={`flex w-full max-w-[150px] items-center justify-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all shadow-sm
                                 ${style.bg} ${style.text} ${style.border}
                                 hover:shadow-md active:scale-95 disabled:opacity-50
                               `}
@@ -840,8 +852,8 @@ const Loans = () => {
                         </div>
                       )}
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="p-4 align-top whitespace-nowrap">
+                      <div className="flex flex-nowrap items-center justify-center gap-2">
                         <Link
                           to={`/loans/${loan._id}/ledger`}
                           className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm border border-emerald-100"
@@ -881,19 +893,6 @@ const Loans = () => {
             {totalRecords}
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-slate-700">
-              <label htmlFor="loan-page-size" className="font-medium text-slate-600">Rows per page</label>
-              <select
-                id="loan-page-size"
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-                className="page-size-select"
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
@@ -910,6 +909,19 @@ const Loans = () => {
               >
                 Next
               </button>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <label htmlFor="loan-page-size" className="font-medium text-slate-600">Loans per page</label>
+              <select
+                id="loan-page-size"
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="page-size-select"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

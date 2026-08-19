@@ -14,7 +14,7 @@ const getCustomers = async (req, res) => {
     const parsedPageSize = parseInt(pageSize, 10);
     const shouldPaginate = !isNaN(parsedPage) || !isNaN(parsedPageSize);
     const effectivePage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-    const allowedPageSizes = [10, 20, 30];
+    const allowedPageSizes = [10, 20, 30, 50, 100];
     const effectivePageSize = shouldPaginate
       ? (allowedPageSizes.includes(parsedPageSize) ? parsedPageSize : 10)
       : null;
@@ -114,7 +114,7 @@ const getCustomers = async (req, res) => {
     }
 
     return res.json({
-      items: customersWithLoans.slice(skip, skip + effectivePageSize),
+      items: customersWithLoans,
       meta: {
         page: effectivePage,
         pageSize: effectivePageSize,

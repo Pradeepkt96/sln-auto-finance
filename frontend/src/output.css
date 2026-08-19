@@ -996,8 +996,48 @@ select.input-field{
   width: 100%;
 }
 
+.w-\[10\%\]{
+  width: 10%;
+}
+
+.w-\[20\%\]{
+  width: 20%;
+}
+
+.w-\[24\%\]{
+  width: 24%;
+}
+
+.w-\[8\%\]{
+  width: 8%;
+}
+
+.w-\[9\%\]{
+  width: 9%;
+}
+
+.w-\[12\%\]{
+  width: 12%;
+}
+
+.w-\[19\%\]{
+  width: 19%;
+}
+
+.w-\[21\%\]{
+  width: 21%;
+}
+
 .min-w-\[90px\]{
   min-width: 90px;
+}
+
+.min-w-\[1100px\]{
+  min-width: 1100px;
+}
+
+.min-w-\[1250px\]{
+  min-width: 1250px;
 }
 
 .max-w-2xl{
@@ -1028,6 +1068,10 @@ select.input-field{
   max-width: 20rem;
 }
 
+.max-w-\[150px\]{
+  max-width: 150px;
+}
+
 .flex-1{
   flex: 1 1 0%;
 }
@@ -1038,6 +1082,10 @@ select.input-field{
 
 .flex-grow{
   flex-grow: 1;
+}
+
+.table-fixed{
+  table-layout: fixed;
 }
 
 .border-collapse{
@@ -1094,6 +1142,10 @@ select.input-field{
 
 .flex-wrap{
   flex-wrap: wrap;
+}
+
+.flex-nowrap{
+  flex-wrap: nowrap;
 }
 
 .items-center{
@@ -1692,6 +1744,10 @@ select.input-field{
   text-align: center;
 }
 
+.align-top{
+  vertical-align: top;
+}
+
 .font-mono{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
@@ -2237,6 +2293,7 @@ select.input-field{
   border-radius: 6px;
   background-color: #ffffff;
   color: #334155;
+  color-scheme: light;
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -2293,36 +2350,6 @@ select.input-field{
   border-color: #e2e8f0;
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-/* Dark mode support */
-
-@media (prefers-color-scheme: dark) {
-  .page-size-select {
-    background-color: #1e293b;
-    border-color: #334155;
-    color: #e2e8f0;
-  }
-
-  .page-size-select:hover {
-    background-color: #0f172a;
-    border-color: #475569;
-  }
-
-  .page-size-select:focus {
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-  }
-
-  .page-size-select option {
-    background-color: #1e293b;
-    color: #e2e8f0;
-  }
-
-  .page-size-select option:checked {
-    background-color: #3b82f6 !important;
-    color: white !important;
-  }
 }
 
 .hover\:border-amber-300:hover{
@@ -2598,3 +2625,4 @@ select.input-field{
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
+
