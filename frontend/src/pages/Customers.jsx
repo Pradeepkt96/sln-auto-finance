@@ -70,7 +70,9 @@ const Customers = () => {
 
   // Role check
   const role = localStorage.getItem('role');
-  const isAdmin = role === 'admin';
+  const canEditCustomers = ['owner', 'admin', 'staff'].includes(role);
+  const canCreateCustomers = role === 'owner' || role === 'admin';
+  const canDeleteCustomers = role === 'owner' || role === 'admin';
 
   // Validation errors
   const [errors, setErrors] = useState({});
@@ -200,7 +202,7 @@ const Customers = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!isAdmin) return;
+    if (!canDeleteCustomers) return;
     if (!window.confirm('Are you sure you want to delete this customer? This will also delete all associated loans and payments.')) return;
 
     try {
@@ -322,7 +324,7 @@ const Customers = () => {
       {/* Form */}
 
       {/* Form */}
-      {showForm && (
+      {showForm && canEditCustomers && (
         <div className="card glass animate-in fade-in slide-in-from-top-4 duration-300">
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-4">
             {editingId ? 'Edit Customer' : t('addCustomer')}
@@ -472,13 +474,13 @@ const Customers = () => {
           </button>
         </div>
         
-        <button
+        {canCreateCustomers && <button
           onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10 ml-auto"
         >
           {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
           {showForm ? 'Cancel' : t('addCustomer')}
-        </button>
+        </button>}
       </div>
 
       {/* Table */}
@@ -581,13 +583,13 @@ const Customers = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button 
+                        {canEditCustomers && <button 
                           onClick={() => handleEdit(customer)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
                         >
                           <Edit2 size={16} />
-                        </button>
-                        {isAdmin && (
+                        </button>}
+                        {canDeleteCustomers && (
                           <button 
                             onClick={() => handleDelete(customer._id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"

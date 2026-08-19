@@ -33,6 +33,10 @@ const Navbar = () => {
     { name: t('profile'), path: '/profile', icon: UserCircle },
   ];
 
+  const visibleNavLinks = role === 'customer'
+    ? navLinks.filter((link) => ['/emi-calculator', '/customers', '/loans', '/profile'].includes(link.path))
+    : navLinks;
+
   if (!token) return null; // Don't show navbar on login/register if not logged in
 
   return (
@@ -47,7 +51,7 @@ const Navbar = () => {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-1">
-            {navLinks.map((link) => {
+            {visibleNavLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
               return (
@@ -95,7 +99,7 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden bg-slate-800 border-t border-slate-700">
           <div className="px-4 py-3 space-y-3">
-            {navLinks.map((link) => {
+            {visibleNavLinks.map((link) => {
               const Icon = link.icon;
               return (
                 <Link

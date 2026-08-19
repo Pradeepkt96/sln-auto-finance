@@ -15,6 +15,10 @@ const protect = async (req, res, next) => {
       if (!req.user) {
         return res.status(401).json({ message: 'User not found' });
       }
+      if (req.user.role === 'customers') {
+        req.user.role = 'customer';
+        await User.updateOne({ _id: req.user._id }, { $set: { role: 'customer' } });
+      }
       next();
     } catch (error) {
       console.error(error);

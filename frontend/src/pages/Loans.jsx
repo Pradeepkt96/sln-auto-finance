@@ -91,7 +91,10 @@ const Loans = () => {
 
   // Profile info
   const role = localStorage.getItem('role');
-  const isAdmin = role === 'admin';
+  const canEditLoans = ['owner', 'admin', 'staff'].includes(role);
+  const canCreateLoans = role === 'owner' || role === 'admin';
+  const canDeleteLoans = role === 'owner' || role === 'admin';
+  const canUpdateLoanStatus = canEditLoans;
 
   // Form State — Loan
   const [hpNumber, setHpNumber] = useState('');
@@ -299,7 +302,7 @@ const Loans = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!isAdmin) return;
+    if (!canDeleteLoans) return;
     if (!window.confirm('Are you sure you want to delete this loan and all associated payments?')) return;
 
     try {
@@ -446,7 +449,7 @@ const Loans = () => {
       {/* Form */}
 
       {/* Form */}
-      {showForm && (
+      {showForm && canEditLoans && (
         <div className="card glass animate-in fade-in slide-in-from-top-4 duration-300 border-t-4 border-t-primary-500">
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6">
             {editingId ? 'Edit Loan' : t('createLoan')}
@@ -695,13 +698,13 @@ const Loans = () => {
           >
             {t('search')}
           </button>
-          <button
+          {canCreateLoans && <button
             onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
             className="btn-primary w-full flex items-center justify-center py-2 px-4 shadow-sm"
           >
             {showForm ? <X size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
             {showForm ? 'Cancel' : t('createLoan')}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -815,7 +818,7 @@ const Loans = () => {
                       {
                         (()=>{
                           const style = STATUS_STYLES[loan.status] || STATUS_STYLES.active;
-                          return (
+                          return canUpdateLoanStatus ? (
                             <button
                               onClick={() => setActivePickerId(activePickerId === loan._id ? null : loan._id)}
                               disabled={changingStatus === loan._id}
@@ -828,11 +831,16 @@ const Loans = () => {
                               <span>{loan.status || 'unknown'}</span>
                               <ChevronDownIcon size={12} className={`transition-transform duration-200 ${activePickerId === loan._id ? 'rotate-180' : ''}`} />
                             </button>
+                          ) : (
+                            <span className={`inline-flex max-w-[150px] items-center justify-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
+                              {style.icon}
+                              <span>{loan.status || 'unknown'}</span>
+                            </span>
                           );
                         })()
                       }
 
-                      {activePickerId === loan._id && (
+                      {canUpdateLoanStatus && activePickerId === loan._id && (
                         <div className="absolute top-12 left-4 z-[100] w-40 bg-white rounded-xl shadow-xl border border-slate-100 p-1 animate-in fade-in zoom-in-95 duration-150">
                           {STATUS_OPTIONS.map((s) => (
                             <button
@@ -861,13 +869,13 @@ const Loans = () => {
                         >
                           <TableIcon size={16} />
                         </Link>
-                        <button
+                        {canEditLoans && <button
                           onClick={() => handleEdit(loan)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
                         >
                           <Edit2 size={16} />
-                        </button>
-                        {isAdmin && (
+                        </button>}
+                        {canDeleteLoans && (
                           <button
                             onClick={() => handleDelete(loan._id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"

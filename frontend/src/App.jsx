@@ -35,13 +35,17 @@ function App() {
           <Route path="/register" element={<Register />} />
           
           <Route element={<PrivateRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<PrivateRoute allowedRoles={['owner', 'admin', 'staff']} />}>
+              <Route index element={<Dashboard />} />
+            </Route>
             <Route path="/emi-calculator" element={<EmiCalculator />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/loans" element={<Loans />} />
             <Route path="/loans/:id/ledger" element={<LoanDue />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/change-password" element={<PrivateRoute allowedRoles={['owner', 'admin', 'staff']} />}>
+              <Route index element={<ChangePassword />} />
+            </Route>
           </Route>
 
           {/* Catch-all route to handle 404s within the app */}

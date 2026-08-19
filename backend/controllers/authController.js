@@ -54,7 +54,7 @@ const requestRegisterOTP = async (req, res) => {
 // @access  Public
 const verifyRegisterOTP = async (req, res) => {
   try {
-    const { username, mobile, otp, password, language, role } = req.body;
+    const { username, mobile, otp, password, language } = req.body;
 
     // Alternate testing OTP
     if (otp !== '123456') {
@@ -84,7 +84,7 @@ const verifyRegisterOTP = async (req, res) => {
       mobile,
       password,
       language: language || 'en',
-      role: role || 'staff',
+      role: 'staff',
     });
 
     if (user) {
@@ -115,6 +115,10 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ mobile });
 
     if (user && (await user.matchPassword(password))) {
+      if (user.role === 'customers') {
+        user.role = 'customer';
+        await User.updateOne({ _id: user._id }, { $set: { role: 'customer' } });
+      }
       res.json({
         _id: user._id,
         username: user.username,

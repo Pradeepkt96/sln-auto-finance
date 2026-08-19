@@ -1,5 +1,6 @@
 const express = require('express');
 const { protect } = require('../middleware/authMiddleware');
+const { authorizeRoles } = require('../middleware/roleMiddleware');
 const Loan = require('../models/Loan');
 const Payment = require('../models/Payment');
 
@@ -8,7 +9,7 @@ const router = express.Router();
 // @desc    Get dashboard metrics
 // @route   GET /api/dashboard
 // @access  Private
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorizeRoles('owner', 'admin', 'staff'), async (req, res) => {
   try {
     const activeLoansCount = await Loan.countDocuments({ status: { $in: ['active', 'collection'] } });
     

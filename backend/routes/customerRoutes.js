@@ -1,6 +1,7 @@
 const express = require('express');
 const { getCustomers, createCustomer, updateCustomer, deleteCustomer } = require('../controllers/customerController');
 const { protect } = require('../middleware/authMiddleware');
+const { authorizeRoles } = require('../middleware/roleMiddleware');
 const multer = require('multer');
 const { uploadCustomerPhoto, deleteCustomerPhoto } = require('../controllers/customerController');
 
@@ -22,16 +23,16 @@ const router = express.Router();
 
 router.route('/')
   .get(protect, getCustomers)
-  .post(protect, createCustomer);
+  .post(protect, authorizeRoles('owner', 'admin'), createCustomer);
 
 router.route('/:id')
-  .put(protect, updateCustomer)
-  .delete(protect, deleteCustomer);
+  .put(protect, authorizeRoles('owner', 'admin', 'staff'), updateCustomer)
+  .delete(protect, authorizeRoles('owner', 'admin'), deleteCustomer);
 
 // Upload customer photo
-router.post('/:id/photo', protect, upload.single('photo'), uploadCustomerPhoto);
+router.post('/:id/photo', protect, authorizeRoles('owner', 'admin', 'staff'), upload.single('photo'), uploadCustomerPhoto);
 
 // Delete customer photo
-router.delete('/:id/photo', protect, deleteCustomerPhoto);
+router.delete('/:id/photo', protect, authorizeRoles('owner', 'admin', 'staff'), deleteCustomerPhoto);
 
 module.exports = router;

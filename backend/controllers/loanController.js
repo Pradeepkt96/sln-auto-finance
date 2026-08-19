@@ -339,8 +339,8 @@ const updateLoan = async (req, res) => {
 // @access  Private
 const deleteLoan = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admin can delete loans' });
+    if (!['owner', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only admin or owner can delete loans' });
     }
 
     const loan = await Loan.findByIdAndDelete(req.params.id);

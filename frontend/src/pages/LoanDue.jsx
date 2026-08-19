@@ -34,6 +34,8 @@ const LoanDue = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const role = localStorage.getItem('role');
+  const canEditLedger = role !== 'customer';
 
   const [loan, setLoan]         = useState(null);
   const [payments, setPayments] = useState([]);
@@ -292,17 +294,19 @@ const LoanDue = () => {
               maxLength={10}
               value={firstDueDate}
               onChange={(e) => handleFirstDueDateChange(e.target.value)}
+              disabled={!canEditLedger}
               className="w-28 px-2 py-1 text-xs font-mono tracking-wider rounded-lg border border-slate-200 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
             />
             <button
               type="button"
               title="Pick from calendar"
               onClick={openDueDatePicker}
+              disabled={!canEditLedger}
               className="p-1 rounded-lg border border-slate-200 text-slate-400 hover:text-primary-600 hover:border-primary-300 hover:bg-white transition-all shadow-sm"
             >
               <CalendarDays size={13} />
             </button>
-            {dueDatesModified && (
+            {canEditLedger && dueDatesModified && (
               <button
                 onClick={handleSaveDueDates}
                 disabled={savingDues}
@@ -333,6 +337,7 @@ const LoanDue = () => {
       {/* ── Ledger Table ── */}
       <div className="card p-0 overflow-hidden shadow-sm border-slate-100">
         <div className="overflow-x-auto">
+          <fieldset disabled={!canEditLedger} className="contents">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-dark-bg text-dark-text text-[10px] font-bold uppercase tracking-widest">
@@ -521,6 +526,7 @@ const LoanDue = () => {
               })}
             </tbody>
           </table>
+          </fieldset>
         </div>
       </div>
 

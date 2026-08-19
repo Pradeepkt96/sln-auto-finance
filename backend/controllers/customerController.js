@@ -192,8 +192,8 @@ const updateCustomer = async (req, res) => {
 // @access  Private
 const deleteCustomer = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admin can delete customers' });
+    if (!['owner', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only admin or owner can delete customers' });
     }
 
     const customer = await Customer.findByIdAndDelete(req.params.id);
