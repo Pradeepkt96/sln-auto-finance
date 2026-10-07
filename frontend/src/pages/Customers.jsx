@@ -58,7 +58,9 @@ const Customers = () => {
     .sort((a, b) => a - b);
 
   // Form State
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [initial, setInitial] = useState('');
+  const [fatherName, setFatherName] = useState('');
   const [mobile, setMobile] = useState('');
   const [altMobile, setAltMobile] = useState('');
   const [address, setAddress] = useState('');
@@ -143,7 +145,11 @@ const Customers = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!name.trim()) newErrors.name = 'Name is required';
+    if (!firstName.trim()) newErrors.firstName = 'First name is required';
+    if (initial && !/^[A-Za-z]$/.test(initial)) newErrors.initial = 'Initial must be one letter';
+    if (fatherName && !/^[A-Za-z]+(?:[-'][A-Za-z]+)*$/.test(fatherName.trim())) {
+      newErrors.fatherName = 'Father name must contain only a first name';
+    }
     const mErr = validateMobile(mobile);
     if (mErr) newErrors.mobile = mErr;
     if (altMobile && !MOBILE_REGEX.test(altMobile)) {
@@ -161,10 +167,18 @@ const Customers = () => {
     setSubmitting(true);
     try {
       let customerRes = null;
+      const payload = {
+        firstName,
+        initial,
+        fatherName,
+        mobile,
+        altMobile,
+        address,
+      };
       if (editingId) {
-        customerRes = (await sln.put(`/customers/${editingId}`, { name, mobile, altMobile, address })).data;
+        customerRes = (await sln.put(`/customers/${editingId}`, payload)).data;
       } else {
-        customerRes = (await sln.post('/customers', { name, mobile, altMobile, address })).data;
+        customerRes = (await sln.post('/customers', payload)).data;
       }
 
       // If a photo file was selected, upload it
@@ -216,8 +230,12 @@ const Customers = () => {
   };
 
   const handleEdit = (customer) => {
+    const legacyNameMatch = customer.name?.match(/^([A-Za-z])\.?\s+(.+)$/);
+    const legacyFirstName = legacyNameMatch?.[2].split(' ')[0] || '';
     setEditingId(customer._id);
-    setName(customer.name);
+    setFirstName(customer.firstName || legacyFirstName);
+    setInitial(customer.initial || (legacyNameMatch?.[1] || ''));
+    setFatherName(customer.fatherName || (legacyNameMatch ? legacyNameMatch[2].split(' ').slice(1).join(' ') : ''));
     setMobile(customer.mobile);
     setAltMobile(customer.altMobile || '');
     setAddress(customer.address);
@@ -231,7 +249,9 @@ const Customers = () => {
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setName('');
+    setFirstName('');
+    setInitial('');
+    setFatherName('');
     setMobile('');
     setAltMobile('');
     setAddress('');
@@ -255,22 +275,29 @@ const Customers = () => {
       </p>
     ) : null;
 
-  const normalizedName = name.trim().toLowerCase();
+  const normalizedName = `${firstName} ${initial} ${fatherName}`.trim().toLowerCase();
   const nameSuggestions = normalizedName
     ? customerDirectory
         .filter((customer) => {
           if (editingId && customer._id === editingId) return false;
-          return customer.name?.toLowerCase().includes(normalizedName);
+          const searchableName = [customer.firstName, customer.initial, customer.fatherName, customer.name]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return searchableName.includes(normalizedName);
         })
-        .filter((customer, index, list) => index === list.findIndex((entry) => entry.name?.toLowerCase() === customer.name?.toLowerCase()))
+        .filter((customer, index, list) => index === list.findIndex((entry) => entry._id === customer._id))
         .slice(0, 6)
     : [];
 
   const selectNameSuggestion = (customer) => {
-    setName(customer.name);
+    const legacyMatch = customer.name?.match(/^([A-Za-z])\.?\s+(.+)$/);
+    setFirstName(customer.firstName || (legacyMatch ? legacyMatch[2].split(' ')[0] : ''));
+    setInitial(customer.initial || (legacyMatch ? legacyMatch[1] : ''));
+    setFatherName(customer.fatherName || '');
     setShowNameSuggestions(false);
     setActiveNameSuggestion(-1);
-    if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+    if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: '' }));
   };
 
   const handleNameSuggestionKeyDown = (e) => {
@@ -331,52 +358,46 @@ const Customers = () => {
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4" noValidate>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('name')}</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  className={`input-field py-2 ${errors.name ? 'border-red-400 focus:ring-red-300' : ''}`}
-                  value={name}
-                  onChange={e => {
-                    setName(e.target.value);
-                    setShowNameSuggestions(true);
-                    setActiveNameSuggestion(-1);
-                    if (errors.name) setErrors(p => ({ ...p, name: '' }));
-                  }}
-                  onFocus={() => {
-                    setShowNameSuggestions(true);
-                    setActiveNameSuggestion(-1);
-                  }}
-                  onBlur={() => setTimeout(() => {
-                    setShowNameSuggestions(false);
-                    setActiveNameSuggestion(-1);
-                  }, 150)}
-                  onKeyDown={handleNameSuggestionKeyDown}
-                  placeholder="e.g. Ravi Kumar"
-                  autoComplete="off"
-                />
-                {showNameSuggestions && nameSuggestions.length > 0 && (
-                  <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
-                    {nameSuggestions.map((customer, index) => (
-                      <button
-                        key={customer._id}
-                        type="button"
-                        className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
-                          activeNameSuggestion === index
-                            ? 'bg-primary-50 text-primary-900'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                        onMouseEnter={() => setActiveNameSuggestion(index)}
-                        onMouseDown={() => selectNameSuggestion(customer)}
-                      >
-                        <span className="font-medium">{customer.name}</span>
-                        <span className="ml-3 text-xs text-slate-400">{customer.mobile}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <FieldError msg={errors.name} />
+              <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+              <input
+                type="text"
+                className={`input-field py-2 ${errors.firstName ? 'border-red-400 focus:ring-red-300' : ''}`}
+                value={firstName}
+                onChange={e => {
+                  setFirstName(e.target.value);
+                  if (errors.firstName) setErrors(p => ({ ...p, firstName: '' }));
+                }}
+                placeholder="e.g. Ravi"
+              />
+              <FieldError msg={errors.firstName} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Initial</label>
+              <input
+                type="text"
+                maxLength="1"
+                className={`input-field py-2 ${errors.initial ? 'border-red-400 focus:ring-red-300' : ''}`}
+                value={initial}
+                onChange={e => setInitial(e.target.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase())}
+                placeholder="e.g. R"
+              />
+              <FieldError msg={errors.initial} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Father Name (First Name only)</label>
+              <input
+                type="text"
+                className={`input-field py-2 ${errors.fatherName ? 'border-red-400 focus:ring-red-300' : ''}`}
+                value={fatherName}
+                onChange={e => {
+                  setFatherName(e.target.value);
+                  if (errors.fatherName) setErrors(p => ({ ...p, fatherName: '' }));
+                }}
+                placeholder="e.g. Kumar"
+              />
+              <FieldError msg={errors.fatherName} />
             </div>
 
             <div>

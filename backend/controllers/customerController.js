@@ -2,6 +2,11 @@ const Customer = require('../models/Customer');
 const Loan = require('../models/Loan');
 const cloudinary = require('../config/cloudinary');
 const streamifier = require('streamifier');
+const {
+  getCustomerDisplayName,
+  normalizeCustomerName,
+  validateFatherName,
+} = require('../utils/customerName');
 
 // @desc    Get all customers (with optional search/filter/sort)
 // @route   GET /api/customers
@@ -22,12 +27,15 @@ const getCustomers = async (req, res) => {
 
     let query = {};
 
-    // Search by name, mobile, or address
+    // Search by split or legacy name, mobile, or address
     if (search && search.trim()) {
       const term = search.trim();
       query = {
         $or: [
           { name: { $regex: term, $options: 'i' } },
+          { firstName: { $regex: term, $options: 'i' } },
+          { initial: { $regex: term, $options: 'i' } },
+          { fatherName: { $regex: term, $options: 'i' } },
           { mobile: { $regex: term, $options: 'i' } },
           { address: { $regex: term, $options: 'i' } },
         ],
@@ -36,7 +44,7 @@ const getCustomers = async (req, res) => {
 
     // Build sort object
     const sort = {};
-    const allowedSortFields = ['name', 'mobile', 'createdAt', 'slNo'];
+    const allowedSortFields = ['name', 'firstName', 'initial', 'fatherName', 'mobile', 'createdAt', 'slNo'];
     const isSpecialSort = sortBy === 'loanNumbers';
     
     if (!isSpecialSort) {
@@ -60,12 +68,18 @@ const getCustomers = async (req, res) => {
       }
     }
 
+    const normalizedCustomers = customers.map((customer) => ({
+      ...customer,
+      ...normalizeCustomerName(customer),
+      name: getCustomerDisplayName(customer),
+    }));
+
     if (!shouldIncludeLoanNumbers) {
       if (!shouldPaginate) {
-        return res.json(customers);
+        return res.json(normalizedCustomers);
       }
       return res.json({
-        items: customers,
+        items: normalizedCustomers,
         meta: {
           page: effectivePage,
           pageSize: effectivePageSize,
@@ -75,7 +89,7 @@ const getCustomers = async (req, res) => {
       });
     }
 
-    const customerIds = customers.map((customer) => customer._id);
+    const customerIds = normalizedCustomers.map((customer) => customer._id);
     const loans = await Loan.find(
       { customerReference: { $in: customerIds } },
       'customerReference hpNumber hpaDate'
@@ -94,7 +108,7 @@ const getCustomers = async (req, res) => {
       });
     });
 
-    const customersWithLoans = customers.map((customer) => ({
+    const customersWithLoans = normalizedCustomers.map((customer) => ({
       ...customer,
       loanNumbers: loansByCustomerId.get(customer._id.toString()) || [],
     }));
@@ -131,26 +145,32 @@ const getCustomers = async (req, res) => {
 // @route   POST /api/customers
 // @access  Private
 const createCustomer = async (req, res) => {
-  const { name, mobile, altMobile, address } = req.body;
+  const { firstName, initial, fatherName, mobile, altMobile, address } = req.body;
+  const normalizedName = normalizeCustomerName(req.body);
 
-  if (!name || !mobile || !address) {
-    return res.status(400).json({ message: 'Please provide all fields' });
+  if (!normalizedName.firstName || !mobile || !address) {
+    return res.status(400).json({ message: 'Please provide first name, mobile number, and address' });
   }
 
-  // Validate 10-digit Indian mobile number
+  if (fatherName && !validateFatherName(fatherName)) {
+    return res.status(400).json({ message: 'Father name must contain only a first name' });
+  }
+
   const mobileRegex = /^[6-9]\d{9}$/;
   if (!mobileRegex.test(mobile)) {
     return res.status(400).json({ message: 'Invalid mobile number. Must be a 10-digit Indian number starting with 6-9.' });
   }
 
   try {
-    // Use aggregation to reliably find the highest existing slNo
     const result = await Customer.aggregate([{ $group: { _id: null, maxSlNo: { $max: '$slNo' } } }]);
     const slNo = result.length > 0 && result[0].maxSlNo ? result[0].maxSlNo + 1 : 1;
 
     const customer = await Customer.create({
       slNo,
-      name,
+      name: getCustomerDisplayName(normalizedName),
+      firstName: normalizedName.firstName,
+      initial: normalizedName.initial,
+      fatherName: normalizedName.fatherName,
       mobile,
       altMobile,
       address,
@@ -171,7 +191,18 @@ const createCustomer = async (req, res) => {
 // @access  Private
 const updateCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
+    const normalizedName = normalizeCustomerName(req.body);
+    const update = {
+      ...req.body,
+      ...normalizedName,
+      name: getCustomerDisplayName(normalizedName),
+    };
+
+    if (update.fatherName && !validateFatherName(update.fatherName)) {
+      return res.status(400).json({ message: 'Father name must contain only a first name' });
+    }
+
+    const customer = await Customer.findByIdAndUpdate(req.params.id, update, {
       returnDocument: 'after',
       runValidators: true,
     });

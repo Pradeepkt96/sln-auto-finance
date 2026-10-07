@@ -9,7 +9,20 @@ const customerSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: true,
+      required: false,
+    },
+    firstName: {
+      type: String,
+      required: false,
+    },
+    initial: {
+      type: String,
+      required: false,
+      maxlength: 1,
+    },
+    fatherName: {
+      type: String,
+      required: false,
     },
     mobile: {
       type: String,

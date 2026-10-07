@@ -41,6 +41,9 @@ const getLoans = async (req, res) => {
       ? {
           $or: [
             { 'customerReference.name': { $regex: customer.trim(), $options: 'i' } },
+            { 'customerReference.firstName': { $regex: customer.trim(), $options: 'i' } },
+            { 'customerReference.initial': { $regex: customer.trim(), $options: 'i' } },
+            { 'customerReference.fatherName': { $regex: customer.trim(), $options: 'i' } },
             { 'customerReference.mobile': { $regex: customer.trim(), $options: 'i' } },
           ],
         }
@@ -55,7 +58,7 @@ const getLoans = async (req, res) => {
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const allowedSortFields = ['loanAmount', 'emiAmount', 'installments', 'createdAt', 'hpNumber', 'hpaDate', 'status'];
     const sortField = sortBy === 'customerReference'
-      ? 'customerReference.name'
+      ? 'customerReference.firstName'
       : (allowedSortFields.includes(sortBy) ? sortBy : 'createdAt');
 
     const pipeline = [
@@ -70,6 +73,9 @@ const getLoans = async (req, res) => {
             {
               $project: {
                 name: 1,
+                firstName: 1,
+                initial: 1,
+                fatherName: 1,
                 mobile: 1,
                 photoUrl: 1,
               },
@@ -222,7 +228,7 @@ const updateLoanStatus = async (req, res) => {
       req.params.id,
       { status },
       { returnDocument: 'after', runValidators: true }
-    ).populate('customerReference', 'name mobile photoUrl');
+    ).populate('customerReference', 'name firstName initial fatherName mobile photoUrl');
 
     if (!loan) {
       return res.status(404).json({ message: 'Loan not found' });
@@ -326,7 +332,7 @@ const updateLoan = async (req, res) => {
       await Promise.all(updatePromises);
     }
 
-    const updatedLoan = await Loan.findById(loan._id).populate('customerReference', 'name mobile photoUrl');
+    const updatedLoan = await Loan.findById(loan._id).populate('customerReference', 'name firstName initial fatherName mobile photoUrl');
     res.json(updatedLoan);
   } catch (error) {
     console.error('Loan Update Error:', error);
