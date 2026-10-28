@@ -16,22 +16,22 @@ const router = express.Router();
 
 router.route('/')
   .get(protect, getLoans)
-  .post(protect, authorizeRoles('owner', 'admin'), createLoan);
+  .post(protect, authorizeRoles('admin'), createLoan);
 
 router.route('/:id/recalculate-dues')
-  .put(protect, authorizeRoles('owner', 'admin', 'staff'), recalculateDueDates);
+  .put(protect, authorizeRoles('admin', 'staff'), recalculateDueDates);
 
 router.route('/:id/payments')
   .get(protect, getLoanPayments);
 
 router.route('/:id/status')
-  .put(protect, authorizeRoles('owner', 'admin', 'staff'), updateLoanStatus);
+  .put(protect, authorizeRoles('admin', 'staff'), updateLoanStatus);
 
 router.route('/:id')
-  .put(protect, authorizeRoles('owner', 'admin', 'staff'), updateLoan)
-  .delete(protect, authorizeRoles('owner', 'admin'), deleteLoan);
+  .put(protect, authorizeRoles('admin', 'staff'), updateLoan)
+  .delete(protect, authorizeRoles('admin'), deleteLoan);
 
 router.route('/payments/:id')
-  .put(protect, authorizeRoles('owner', 'admin', 'staff'), updatePayment);
+  .put(protect, authorizeRoles('admin', 'staff'), updatePayment);
 
 module.exports = router;

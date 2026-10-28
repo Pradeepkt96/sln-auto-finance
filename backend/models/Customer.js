@@ -36,6 +36,11 @@ const customerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    subRole: {
+      type: String,
+      enum: ['vehicle_owner', 'guarantor'],
+      default: 'vehicle_owner',
+    },
     // Photo URL stored after Cloudinary upload
     photoUrl: {
       type: String,

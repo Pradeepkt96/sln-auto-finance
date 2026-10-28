@@ -9,7 +9,7 @@ const router = express.Router();
 // @desc    Get dashboard metrics
 // @route   GET /api/dashboard
 // @access  Private
-router.get('/', protect, authorizeRoles('owner', 'admin', 'staff'), async (req, res) => {
+router.get('/', protect, authorizeRoles('admin', 'staff'), async (req, res) => {
   try {
     const activeLoansCount = await Loan.countDocuments({ status: { $in: ['active', 'collection'] } });
     

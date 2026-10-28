@@ -35,7 +35,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           
           <Route element={<PrivateRoute />}>
-            <Route path="/dashboard" element={<PrivateRoute allowedRoles={['owner', 'admin', 'staff']} />}>
+            <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin', 'staff']} />}>
               <Route index element={<Dashboard />} />
             </Route>
             <Route path="/emi-calculator" element={<EmiCalculator />} />
@@ -43,7 +43,7 @@ function App() {
             <Route path="/loans" element={<Loans />} />
             <Route path="/loans/:id/ledger" element={<LoanDue />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/change-password" element={<PrivateRoute allowedRoles={['owner', 'admin', 'staff']} />}>
+            <Route path="/change-password" element={<PrivateRoute allowedRoles={['admin', 'staff']} />}>
               <Route index element={<ChangePassword />} />
             </Route>
           </Route>

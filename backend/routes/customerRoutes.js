@@ -23,16 +23,16 @@ const router = express.Router();
 
 router.route('/')
   .get(protect, getCustomers)
-  .post(protect, authorizeRoles('owner', 'admin'), createCustomer);
+  .post(protect, authorizeRoles('admin'), createCustomer);
 
 router.route('/:id')
-  .put(protect, authorizeRoles('owner', 'admin', 'staff'), updateCustomer)
-  .delete(protect, authorizeRoles('owner', 'admin'), deleteCustomer);
+  .put(protect, authorizeRoles('admin', 'staff'), updateCustomer)
+  .delete(protect, authorizeRoles('admin'), deleteCustomer);
 
 // Upload customer photo
-router.post('/:id/photo', protect, authorizeRoles('owner', 'admin', 'staff'), upload.single('photo'), uploadCustomerPhoto);
+router.post('/:id/photo', protect, authorizeRoles('admin', 'staff'), upload.single('photo'), uploadCustomerPhoto);
 
 // Delete customer photo
-router.delete('/:id/photo', protect, authorizeRoles('owner', 'admin', 'staff'), deleteCustomerPhoto);
+router.delete('/:id/photo', protect, authorizeRoles('admin', 'staff'), deleteCustomerPhoto);
 
 module.exports = router;

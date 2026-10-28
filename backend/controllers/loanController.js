@@ -1,8 +1,20 @@
 const Loan = require('../models/Loan');
 const Payment = require('../models/Payment');
+const Customer = require('../models/Customer');
 
 const logDebug = (msg, data) => {
   console.log(`[DEBUG] ${msg}${data ? ': ' + JSON.stringify(data) : ''}`);
+};
+
+const validateGuarantor = async (guarantorReference) => {
+  if (!guarantorReference) return;
+
+  const guarantor = await Customer.findById(guarantorReference);
+  if (!guarantor || guarantor.subRole !== 'guarantor') {
+    const error = new Error('Selected guarantor must be a customer with the guarantor sub-role');
+    error.statusCode = 400;
+    throw error;
+  }
 };
 
 // @desc    Get all loans (with optional search/filter)
@@ -84,8 +96,35 @@ const getLoans = async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from: 'customers',
+          localField: 'guarantorReference',
+          foreignField: '_id',
+          as: 'guarantorReference',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+                firstName: 1,
+                initial: 1,
+                fatherName: 1,
+                mobile: 1,
+                subRole: 1,
+                photoUrl: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
         $unwind: {
           path: '$customerReference',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: '$guarantorReference',
           preserveNullAndEmptyArrays: true,
         },
       },
@@ -151,7 +190,7 @@ const getLoans = async (req, res) => {
 // @access  Private
 const createLoan = async (req, res) => {
   const {
-    hpNumber, customerReference,
+    hpNumber, customerReference, guarantorReference,
     vehicleNumber, make, vehicleModel, color,
     loanAmount, interestRate, installments, emiAmount, hpaDate,
   } = req.body;
@@ -169,10 +208,12 @@ const createLoan = async (req, res) => {
   }
 
   try {
+    await validateGuarantor(guarantorReference);
     console.log('Creating loan with payload:', req.body);
     const loan = await Loan.create({
       hpNumber,
       customerReference,
+      guarantorReference,
       vehicleNumber: vehicleNumber.toUpperCase(),
       make,
       vehicleModel,
@@ -208,7 +249,7 @@ const createLoan = async (req, res) => {
     res.status(201).json(loan);
   } catch (error) {
     console.error('Loan Creation Error:', error);
-    res.status(500).json({ message: error.message || 'Server error creating loan' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'Server error creating loan' });
   }
 };
 
@@ -256,9 +297,11 @@ const updateLoan = async (req, res) => {
     const oldInstallments = loan.installments;
     const oldEmiAmount  = loan.emiAmount;
 
+    await validateGuarantor(req.body.guarantorReference);
+
     // Update fields from req.body
     const fieldsToUpdate = [
-      'hpNumber', 'customerReference', 'vehicleNumber', 'make',
+      'hpNumber', 'customerReference', 'guarantorReference', 'vehicleNumber', 'make',
       'vehicleModel', 'color', 'loanAmount', 'interestRate',
       'installments', 'emiAmount', 'status', 'hpaDate',
     ];
@@ -336,7 +379,7 @@ const updateLoan = async (req, res) => {
     res.json(updatedLoan);
   } catch (error) {
     console.error('Loan Update Error:', error);
-    res.status(500).json({ message: error.message || 'Server error updating loan' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'Server error updating loan' });
   }
 };
 
@@ -345,8 +388,8 @@ const updateLoan = async (req, res) => {
 // @access  Private
 const deleteLoan = async (req, res) => {
   try {
-    if (!['owner', 'admin'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Only admin or owner can delete loans' });
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can delete loans' });
     }
 
     const loan = await Loan.findByIdAndDelete(req.params.id);

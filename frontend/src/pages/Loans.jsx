@@ -91,14 +91,15 @@ const Loans = () => {
 
   // Profile info
   const role = localStorage.getItem('role');
-  const canEditLoans = ['owner', 'admin', 'staff'].includes(role);
-  const canCreateLoans = role === 'owner' || role === 'admin';
-  const canDeleteLoans = role === 'owner' || role === 'admin';
+  const canEditLoans = ['admin', 'staff'].includes(role);
+  const canCreateLoans = role === 'admin';
+  const canDeleteLoans = role === 'admin';
   const canUpdateLoanStatus = canEditLoans;
 
   // Form State — Loan
   const [hpNumber, setHpNumber] = useState('');
   const [customerRef, setCustomerRef] = useState('');
+  const [guarantorRef, setGuarantorRef] = useState('');
   const [loanAmount, setLoanAmount] = useState('');
   const [interestRate, setInterestRate] = useState('2');
   const [installments, setInstallments] = useState('');
@@ -174,6 +175,7 @@ const Loans = () => {
       setLoans(loansData.map((loan) => ({
         ...loan,
         customerReference: localizeCustomerRecord(loan.customerReference),
+        guarantorReference: localizeCustomerRecord(loan.guarantorReference),
       })));
       if (!Array.isArray(data) && data.meta) {
         setTotalPages(data.meta.totalPages || 1);
@@ -253,7 +255,7 @@ const Loans = () => {
   };
 
   const resetForm = () => {
-    setHpNumber(''); setCustomerRef(''); setLoanAmount(''); setInterestRate('2');
+    setHpNumber(''); setCustomerRef(''); setGuarantorRef(''); setLoanAmount(''); setInterestRate('2');
     setInstallments(''); setEmiAmount(''); setEmiManuallyEdited(false);
     setVehicleNumber(''); setMake(''); setVehicleModel(''); setColor('');
     setHpaDate('');
@@ -272,6 +274,7 @@ const Loans = () => {
     const payload = {
       hpNumber,
       customerReference: customerRef,
+      guarantorReference: guarantorRef || null,
       vehicleNumber: vehicleNumber.toUpperCase(),
       make,
       vehicleModel,
@@ -320,6 +323,7 @@ const Loans = () => {
     setEditingId(loan._id);
     setHpNumber(loan.hpNumber);
     setCustomerRef(loan.customerReference?._id || '');
+    setGuarantorRef(loan.guarantorReference?._id || '');
     setLoanAmount(loan.loanAmount);
     setInterestRate(loan.interestRate);
     setInstallments(loan.installments);
@@ -502,11 +506,21 @@ const Loans = () => {
                   <FieldError msg={errors.hpaDate} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('customers')}</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Owner</label>
                   <select className="input-field py-2 bg-white"
                     value={customerRef} onChange={e => setCustomerRef(e.target.value)} required>
-                    <option value="">Select a Customer</option>
-                    {customers.map(c => (
+                    <option value="">Select a Vehicle Owner</option>
+                    {customers.filter(c => c.subRole !== 'guarantor').map(c => (
+                      <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Guarantor</label>
+                  <select className="input-field py-2 bg-white"
+                    value={guarantorRef} onChange={e => setGuarantorRef(e.target.value)}>
+                    <option value="">No Guarantor</option>
+                    {customers.filter(c => c.subRole === 'guarantor').map(c => (
                       <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
                     ))}
                   </select>
@@ -803,6 +817,11 @@ const Loans = () => {
                         <div>
                           <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
                           <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
+                          {loan.guarantorReference && (
+                            <div className="mt-1 text-[10px] font-semibold text-violet-600">
+                              Guarantor: {loan.guarantorReference.name}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>

@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const User = require('../models/User');
+const Customer = require('../models/Customer');
 
 const connectDB = async () => {
   try {
@@ -10,6 +12,11 @@ const connectDB = async () => {
 
     const conn = await mongoose.connect(uri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+
+    await Promise.all([
+      User.updateMany({ role: 'owner' }, { $set: { role: 'admin' } }),
+      Customer.updateMany({ subRole: 'hirer' }, { $set: { subRole: 'vehicle_owner' } }),
+    ]);
   } catch (error) {
     console.error(`MongoDB connection error: ${error.message}`);
     process.exit(1);

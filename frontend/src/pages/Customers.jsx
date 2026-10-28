@@ -64,6 +64,7 @@ const Customers = () => {
   const [mobile, setMobile] = useState('');
   const [altMobile, setAltMobile] = useState('');
   const [address, setAddress] = useState('');
+  const [subRole, setSubRole] = useState('vehicle_owner');
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [lightboxUrl, setLightboxUrl] = useState('');
@@ -72,9 +73,9 @@ const Customers = () => {
 
   // Role check
   const role = localStorage.getItem('role');
-  const canEditCustomers = ['owner', 'admin', 'staff'].includes(role);
-  const canCreateCustomers = role === 'owner' || role === 'admin';
-  const canDeleteCustomers = role === 'owner' || role === 'admin';
+  const canEditCustomers = ['admin', 'staff'].includes(role);
+  const canCreateCustomers = role === 'admin';
+  const canDeleteCustomers = role === 'admin';
 
   // Validation errors
   const [errors, setErrors] = useState({});
@@ -174,6 +175,7 @@ const Customers = () => {
         mobile,
         altMobile,
         address,
+        subRole,
       };
       if (editingId) {
         customerRes = (await sln.put(`/customers/${editingId}`, payload)).data;
@@ -239,6 +241,7 @@ const Customers = () => {
     setMobile(customer.mobile);
     setAltMobile(customer.altMobile || '');
     setAddress(customer.address);
+    setSubRole(customer.subRole === 'guarantor' ? 'guarantor' : 'vehicle_owner');
     setPhotoPreview(customer.photoUrl || '');
     setShowNameSuggestions(false);
     setActiveNameSuggestion(-1);
@@ -255,6 +258,7 @@ const Customers = () => {
     setMobile('');
     setAltMobile('');
     setAddress('');
+    setSubRole('vehicle_owner');
     setPhotoFile(null);
     setPhotoPreview('');
     setShowNameSuggestions(false);
@@ -442,6 +446,18 @@ const Customers = () => {
                 placeholder="Full address"
               />
               <FieldError msg={errors.address} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Customer Sub-role</label>
+              <select
+                className="input-field py-2 bg-white"
+                value={subRole}
+                onChange={(e) => setSubRole(e.target.value)}
+              >
+                <option value="vehicle_owner">Vehicle Owner</option>
+                <option value="guarantor">Guarantor</option>
+              </select>
             </div>
 
             <div>

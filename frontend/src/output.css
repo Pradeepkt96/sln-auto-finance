@@ -1955,6 +1955,11 @@ select.input-field{
   color: rgb(139 92 246 / var(--tw-text-opacity, 1));
 }
 
+.text-violet-600{
+  --tw-text-opacity: 1;
+  color: rgb(124 58 237 / var(--tw-text-opacity, 1));
+}
+
 .text-white{
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));

@@ -12,6 +12,10 @@ const loanSchema = new mongoose.Schema(
       ref: 'Customer',
       required: true,
     },
+    guarantorReference: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+    },
     // Vehicle details
     vehicleNumber: {
       type: String,

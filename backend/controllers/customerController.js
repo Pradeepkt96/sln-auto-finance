@@ -145,8 +145,13 @@ const getCustomers = async (req, res) => {
 // @route   POST /api/customers
 // @access  Private
 const createCustomer = async (req, res) => {
-  const { firstName, initial, fatherName, mobile, altMobile, address } = req.body;
+  const { firstName, initial, fatherName, mobile, altMobile, address, subRole } = req.body;
   const normalizedName = normalizeCustomerName(req.body);
+  const normalizedSubRole = subRole === 'hirer' ? 'vehicle_owner' : subRole || 'vehicle_owner';
+
+  if (!['vehicle_owner', 'guarantor'].includes(normalizedSubRole)) {
+    return res.status(400).json({ message: 'Invalid customer sub-role' });
+  }
 
   if (!normalizedName.firstName || !mobile || !address) {
     return res.status(400).json({ message: 'Please provide first name, mobile number, and address' });
@@ -174,6 +179,7 @@ const createCustomer = async (req, res) => {
       mobile,
       altMobile,
       address,
+      subRole: normalizedSubRole,
       createdBy: req.user._id,
     });
     res.status(201).json(customer);
@@ -197,6 +203,12 @@ const updateCustomer = async (req, res) => {
       ...normalizedName,
       name: getCustomerDisplayName(normalizedName),
     };
+
+    if (update.subRole === 'hirer') update.subRole = 'vehicle_owner';
+
+    if (update.subRole && !['vehicle_owner', 'guarantor'].includes(update.subRole)) {
+      return res.status(400).json({ message: 'Invalid customer sub-role' });
+    }
 
     if (update.fatherName && !validateFatherName(update.fatherName)) {
       return res.status(400).json({ message: 'Father name must contain only a first name' });
@@ -223,8 +235,8 @@ const updateCustomer = async (req, res) => {
 // @access  Private
 const deleteCustomer = async (req, res) => {
   try {
-    if (!['owner', 'admin'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Only admin or owner can delete customers' });
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can delete customers' });
     }
 
     const customer = await Customer.findByIdAndDelete(req.params.id);
