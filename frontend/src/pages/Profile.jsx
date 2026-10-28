@@ -118,7 +118,7 @@ const Profile = () => {
             <Shield size={20} className="text-slate-400 mr-4" />
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('status')}</p>
-              <p className="text-emerald-600 font-medium">Active Account</p>
+              <p className="text-emerald-600 font-medium">{t('activeAccount')}</p>
             </div>
           </div>
         </div>
@@ -143,7 +143,7 @@ const Profile = () => {
 
       <div className="text-center p-4">
         <p className="text-slate-400 text-sm">
-          {t('appName')} &copy; 2026
+          {t('appName')} &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>

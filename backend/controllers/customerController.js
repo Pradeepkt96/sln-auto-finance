@@ -146,6 +146,7 @@ const getCustomers = async (req, res) => {
 // @access  Private
 const createCustomer = async (req, res) => {
   const { firstName, initial, fatherName, mobile, altMobile, address, subRole } = req.body;
+  const relationType = req.body.relationType || 'S/O';
   const normalizedName = normalizeCustomerName(req.body);
   const normalizedSubRole = subRole === 'hirer' ? 'vehicle_owner' : subRole || 'vehicle_owner';
 
@@ -159,6 +160,9 @@ const createCustomer = async (req, res) => {
 
   if (fatherName && !validateFatherName(fatherName)) {
     return res.status(400).json({ message: 'Father name must contain only a first name' });
+  }
+  if (!['S/O', 'W/O', 'C/O'].includes(relationType)) {
+    return res.status(400).json({ message: 'Invalid customer relationship type' });
   }
 
   const mobileRegex = /^[6-9]\d{9}$/;
@@ -176,6 +180,7 @@ const createCustomer = async (req, res) => {
       firstName: normalizedName.firstName,
       initial: normalizedName.initial,
       fatherName: normalizedName.fatherName,
+      relationType,
       mobile,
       altMobile,
       address,
@@ -212,6 +217,9 @@ const updateCustomer = async (req, res) => {
 
     if (update.fatherName && !validateFatherName(update.fatherName)) {
       return res.status(400).json({ message: 'Father name must contain only a first name' });
+    }
+    if (update.relationType && !['S/O', 'W/O', 'C/O'].includes(update.relationType)) {
+      return res.status(400).json({ message: 'Invalid customer relationship type' });
     }
 
     const customer = await Customer.findByIdAndUpdate(req.params.id, update, {

@@ -57,6 +57,7 @@ const getLoans = async (req, res) => {
             { 'customerReference.initial': { $regex: customer.trim(), $options: 'i' } },
             { 'customerReference.fatherName': { $regex: customer.trim(), $options: 'i' } },
             { 'customerReference.mobile': { $regex: customer.trim(), $options: 'i' } },
+            { 'customerReference.address': { $regex: customer.trim(), $options: 'i' } },
           ],
         }
       : null;
@@ -73,8 +74,7 @@ const getLoans = async (req, res) => {
       ? 'customerReference.firstName'
       : (allowedSortFields.includes(sortBy) ? sortBy : 'createdAt');
 
-    const pipeline = [
-      { $match: query },
+    const lookupStages = [
       {
         $lookup: {
           from: 'customers',
@@ -89,6 +89,7 @@ const getLoans = async (req, res) => {
                 initial: 1,
                 fatherName: 1,
                 mobile: 1,
+                address: 1,
                 photoUrl: 1,
               },
             },
@@ -128,36 +129,62 @@ const getLoans = async (req, res) => {
           preserveNullAndEmptyArrays: true,
         },
       },
-      {
-        $addFields: {
-          hpaDateDisplay: {
-            $cond: [
-              { $ifNull: ['$hpaDate', false] },
-              { $dateToString: { format: '%d/%m/%Y', date: '$hpaDate' } },
-              '',
-            ],
-          },
-        },
-      },
     ];
 
-    if (customerMatch) {
-      pipeline.push({ $match: customerMatch });
+    const requiresJoinedFields = Boolean(customerMatch || hpaDateMatch || sortField === 'customerReference.firstName');
+    let totalRecords;
+    if (customerMatch || hpaDateMatch) {
+      const countPipeline = [
+        { $match: query },
+        ...lookupStages,
+        {
+          $addFields: {
+            hpaDateDisplay: {
+              $cond: [
+                { $ifNull: ['$hpaDate', false] },
+                { $dateToString: { format: '%d/%m/%Y', date: '$hpaDate' } },
+                '',
+              ],
+            },
+          },
+        },
+        ...(customerMatch ? [{ $match: customerMatch }] : []),
+        ...(hpaDateMatch ? [{ $match: hpaDateMatch }] : []),
+        { $count: 'total' },
+      ];
+      const totalCountResult = await Loan.aggregate(countPipeline).collation({ locale: 'en_US', numericOrdering: true });
+      totalRecords = totalCountResult.length > 0 ? totalCountResult[0].total : 0;
+    } else {
+      totalRecords = await Loan.countDocuments(query);
     }
 
-    if (hpaDateMatch) {
-      pipeline.push({ $match: hpaDateMatch });
+    const pipeline = [{ $match: query }];
+    if (!requiresJoinedFields) {
+      pipeline.push({ $sort: { [sortField]: sortDirection, _id: 1 } });
+      if (shouldPaginate) {
+        pipeline.push({ $skip: skip }, { $limit: effectivePageSize });
+      }
     }
+    pipeline.push(...lookupStages);
+    pipeline.push({
+      $addFields: {
+        hpaDateDisplay: {
+          $cond: [
+            { $ifNull: ['$hpaDate', false] },
+            { $dateToString: { format: '%d/%m/%Y', date: '$hpaDate' } },
+            '',
+          ],
+        },
+      },
+    });
 
-    pipeline.push(
-      { $sort: { [sortField]: sortDirection, _id: 1 } }
-    );
+    if (customerMatch) pipeline.push({ $match: customerMatch });
+    if (hpaDateMatch) pipeline.push({ $match: hpaDateMatch });
 
-    const countPipeline = [...pipeline, { $count: 'total' }];
-    const totalCountResult = await Loan.aggregate(countPipeline).collation({ locale: 'en_US', numericOrdering: true });
-    const totalRecords = totalCountResult.length > 0 ? totalCountResult[0].total : 0;
-
-    if (shouldPaginate) {
+    if (requiresJoinedFields) {
+      pipeline.push({ $sort: { [sortField]: sortDirection, _id: 1 } });
+    }
+    if (shouldPaginate && requiresJoinedFields) {
       pipeline.push(
         { $skip: skip },
         { $limit: effectivePageSize }
@@ -181,6 +208,16 @@ const getLoans = async (req, res) => {
       },
     });
   } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getVehicleMakes = async (req, res) => {
+  try {
+    const makes = await Loan.distinct('make');
+    res.json(makes.filter((make) => typeof make === 'string' && make.trim()));
+  } catch (error) {
+    console.error('Failed to fetch vehicle makes:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -492,6 +529,7 @@ const recalculateDueDates = async (req, res) => {
 
 module.exports = {
   getLoans,
+  getVehicleMakes,
   createLoan,
   updateLoanStatus,
   updateLoan,

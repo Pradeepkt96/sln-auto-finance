@@ -1,6 +1,7 @@
 const express = require('express');
 const { 
   getLoans, 
+  getVehicleMakes,
   createLoan, 
   updateLoanStatus, 
   updateLoan, 
@@ -13,6 +14,8 @@ const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
 
 const router = express.Router();
+
+router.get('/vehicle-makes', protect, getVehicleMakes);
 
 router.route('/')
   .get(protect, getLoans)

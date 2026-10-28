@@ -24,6 +24,11 @@ const customerSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    relationType: {
+      type: String,
+      enum: ['S/O', 'W/O', 'C/O'],
+      default: 'S/O',
+    },
     mobile: {
       type: String,
       required: true,

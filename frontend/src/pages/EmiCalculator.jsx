@@ -61,7 +61,7 @@ const EmiCalculator = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">{t('installments')} (Months)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">{t('installments')} ({t('months')})</label>
               <input
                 type="number"
                 className="input-field"

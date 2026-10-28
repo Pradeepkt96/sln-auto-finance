@@ -230,8 +230,8 @@ const LoanDue = () => {
     return (
       <div className="text-center p-10">
         <AlertCircle size={48} className="mx-auto text-rose-500 mb-4" />
-        <h2 className="text-xl font-bold text-slate-800 tracking-tight">Loan Not Found</h2>
-        <button onClick={() => navigate('/loans')} className="mt-4 text-primary-600 underline">Back to Loans</button>
+        <h2 className="text-xl font-bold text-slate-800 tracking-tight">{t('loanNotFound')}</h2>
+        <button onClick={() => navigate('/loans')} className="mt-4 text-primary-600 underline">{t('backToLoans')}</button>
       </div>
     );
   }
@@ -275,8 +275,8 @@ const LoanDue = () => {
           </button>
           <div className="border-l border-slate-100 pl-4">
             <p className="text-slate-500 text-xs font-medium">
-              HP No: <span className="text-slate-800 font-bold">{loan.hpNumber}</span> •{' '}
-              Customer: <span className="text-slate-800 font-bold">{loan.customerReference?.name}</span>
+              {t('hpNumberLabel')} <span className="text-slate-800 font-bold">{loan.hpNumber}</span> •{' '}
+              {t('customer')}: <span className="text-slate-800 font-bold">{loan.customerReference?.name}</span>
             </p>
           </div>
         </div>
@@ -284,7 +284,7 @@ const LoanDue = () => {
         {/* Centre — First Due Date cascade */}
         <div className="flex flex-col items-center gap-1 bg-slate-50/50 px-4 py-1.5 rounded-xl border border-slate-100/50">
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
-            First Due Date <span className="text-slate-300 normal-case font-normal">(cascades all pending)</span>
+            {t('firstDueDate')} <span className="text-slate-300 normal-case font-normal">{t('cascadesAllPending')}</span>
           </p>
           <div className="flex items-center gap-1.5">
             <input
@@ -314,7 +314,7 @@ const LoanDue = () => {
               >
                 {savingDues
                   ? <><RefreshCw size={10} className="animate-spin" /> Saving…</>
-                  : <><Save size={10} /> Save Dues</>
+                  : <><Save size={10} /> {t('saveDues')}</>
                 }
               </button>
             )}
@@ -341,7 +341,7 @@ const LoanDue = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-dark-bg text-dark-text text-[10px] font-bold uppercase tracking-widest">
-                <th className="p-4 w-12 text-center text-slate-400 border-r border-slate-800">No.</th>
+                <th className="p-4 w-12 text-center text-slate-400 border-r border-slate-800">{t('installmentNumber')}</th>
                 <th className="p-4">{t('dueAmount')}</th>
                 <th className="p-4">{t('dueDate')}</th>
                 <th className="p-4">{t('receivedAmount')}</th>
@@ -349,8 +349,8 @@ const LoanDue = () => {
                 <th className="p-4">{t('receiptNo')}</th>
                 <th className="p-4 text-center">{t('penalty')}</th>
                 <th className="p-4 text-center">{t('collectionCharges')}</th>
-                <th className="p-4 text-center">Pay Mode</th>
-                <th className="p-4 text-center">Save</th>
+                <th className="p-4 text-center">{t('payMode')}</th>
+                <th className="p-4 text-center">{t('save')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -410,7 +410,7 @@ const LoanDue = () => {
                         />
                         <button
                           type="button"
-                          title="Pick date"
+                          title={t('pickDate')}
                           onClick={() => openPaidDatePicker(p._id)}
                           className="p-1.5 rounded-md border border-slate-200 text-slate-400 hover:text-primary-500 hover:border-primary-300 transition-all"
                         >
@@ -438,7 +438,7 @@ const LoanDue = () => {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          title={ev.penaltyEnabled ? 'Disable penalty' : 'Enable penalty'}
+                          title={ev.penaltyEnabled ? t('disablePenalty') : t('enablePenalty')}
                           onClick={() => setField(p._id, 'penaltyEnabled', !ev.penaltyEnabled)}
                           className={`p-1.5 rounded-md border transition-all ${
                             ev.penaltyEnabled
@@ -468,7 +468,7 @@ const LoanDue = () => {
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
-                          title={ev.collectionChargesEnabled ? 'Disable collection charges' : 'Enable collection charges'}
+                          title={ev.collectionChargesEnabled ? t('disableCollectionCharges') : t('enableCollectionCharges')}
                           onClick={() => setField(p._id, 'collectionChargesEnabled', !ev.collectionChargesEnabled)}
                           className={`p-1.5 rounded-md border transition-all ${
                             ev.collectionChargesEnabled
@@ -500,7 +500,7 @@ const LoanDue = () => {
                         value={ev.paymentMode || 'cash'}
                         onChange={(e) => setField(p._id, 'paymentMode', e.target.value)}
                       >
-                        <option value="cash">💵 Cash</option>
+                        <option value="cash">💵 {t('cash')}</option>
                         <option value="online">📱 Gpay</option>
                       </select>
                     </td>
@@ -510,6 +510,8 @@ const LoanDue = () => {
                       <button
                         onClick={() => handleUpdatePayment(p._id)}
                         disabled={isUpdating}
+                        aria-label={t('save')}
+                        title={t('save')}
                         className={`p-2 rounded-lg transition-all shadow-sm flex items-center justify-center mx-auto
                           ${isPaid ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-primary-500 text-white hover:bg-primary-600'}
                           ${isUpdating ? 'opacity-50 animate-pulse' : ''}
@@ -535,22 +537,22 @@ const LoanDue = () => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Paid</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('paid')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-amber-400" />
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Partial</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('partial')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-rose-500" />
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pending</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('pending')}</span>
           </div>
         </div>
         <button
           onClick={() => window.print()}
           className="text-xs font-bold text-primary-600 border border-primary-200 bg-primary-50 px-6 py-2 rounded-xl hover:bg-primary-100 transition-all shadow-sm uppercase tracking-widest"
         >
-          Print Ledger
+          {t('printLedger')}
         </button>
       </div>
     </div>

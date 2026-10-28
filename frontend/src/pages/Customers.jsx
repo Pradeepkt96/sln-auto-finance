@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import sln from '../api';
@@ -61,12 +61,14 @@ const Customers = () => {
   const [firstName, setFirstName] = useState('');
   const [initial, setInitial] = useState('');
   const [fatherName, setFatherName] = useState('');
+  const [relationType, setRelationType] = useState('S/O');
   const [mobile, setMobile] = useState('');
   const [altMobile, setAltMobile] = useState('');
   const [address, setAddress] = useState('');
   const [subRole, setSubRole] = useState('vehicle_owner');
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
+  const photoInputRef = useRef(null);
   const [lightboxUrl, setLightboxUrl] = useState('');
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [activeNameSuggestion, setActiveNameSuggestion] = useState(-1);
@@ -172,6 +174,7 @@ const Customers = () => {
         firstName,
         initial,
         fatherName,
+        relationType,
         mobile,
         altMobile,
         address,
@@ -210,6 +213,7 @@ const Customers = () => {
     if (!f) {
       setPhotoFile(null);
       setPhotoPreview('');
+      if (photoInputRef.current) photoInputRef.current.value = '';
       return;
     }
     setPhotoFile(f);
@@ -238,6 +242,7 @@ const Customers = () => {
     setFirstName(customer.firstName || legacyFirstName);
     setInitial(customer.initial || (legacyNameMatch?.[1] || ''));
     setFatherName(customer.fatherName || (legacyNameMatch ? legacyNameMatch[2].split(' ').slice(1).join(' ') : ''));
+    setRelationType(customer.relationType || 'S/O');
     setMobile(customer.mobile);
     setAltMobile(customer.altMobile || '');
     setAddress(customer.address);
@@ -255,6 +260,7 @@ const Customers = () => {
     setFirstName('');
     setInitial('');
     setFatherName('');
+    setRelationType('S/O');
     setMobile('');
     setAltMobile('');
     setAddress('');
@@ -299,6 +305,7 @@ const Customers = () => {
     setFirstName(customer.firstName || (legacyMatch ? legacyMatch[2].split(' ')[0] : ''));
     setInitial(customer.initial || (legacyMatch ? legacyMatch[1] : ''));
     setFatherName(customer.fatherName || '');
+    setRelationType(customer.relationType || 'S/O');
     setShowNameSuggestions(false);
     setActiveNameSuggestion(-1);
     if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: '' }));
@@ -362,7 +369,7 @@ const Customers = () => {
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4" noValidate>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('firstName')}</label>
               <input
                 type="text"
                 className={`input-field py-2 ${errors.firstName ? 'border-red-400 focus:ring-red-300' : ''}`}
@@ -377,7 +384,7 @@ const Customers = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Initial</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('initial')}</label>
               <input
                 type="text"
                 maxLength="1"
@@ -390,17 +397,30 @@ const Customers = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Father Name (First Name only)</label>
-              <input
-                type="text"
-                className={`input-field py-2 ${errors.fatherName ? 'border-red-400 focus:ring-red-300' : ''}`}
-                value={fatherName}
-                onChange={e => {
-                  setFatherName(e.target.value);
-                  if (errors.fatherName) setErrors(p => ({ ...p, fatherName: '' }));
-                }}
-                placeholder="e.g. Kumar"
-              />
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('relationship')}</label>
+              <div className="grid grid-cols-[auto_1fr] gap-2">
+                <select
+                  className="input-field py-2"
+                  value={relationType}
+                  onChange={(e) => setRelationType(e.target.value)}
+                  aria-label={t('relationship')}
+                >
+                  <option value="S/O">S/O</option>
+                  <option value="W/O">W/O</option>
+                  <option value="C/O">C/O</option>
+                </select>
+                <input
+                  type="text"
+                  className={`input-field py-2 ${errors.fatherName ? 'border-red-400 focus:ring-red-300' : ''}`}
+                  value={fatherName}
+                  onChange={e => {
+                    setFatherName(e.target.value);
+                    if (errors.fatherName) setErrors(p => ({ ...p, fatherName: '' }));
+                  }}
+                  placeholder={t('relationName')}
+                  aria-label={t('relationName')}
+                />
+              </div>
               <FieldError msg={errors.fatherName} />
             </div>
 
@@ -421,7 +441,7 @@ const Customers = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Alt Mobile (Optional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('altMobileOptional')}</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium">+91</span>
                 <input
@@ -429,7 +449,7 @@ const Customers = () => {
                   className={`input-field py-2 pl-10 ${errors.altMobile ? 'border-red-400 focus:ring-red-300' : ''}`}
                   value={altMobile}
                   onChange={(e) => setAltMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="Optional"
+                  placeholder={t('altMobileOptional')}
                   maxLength={10}
                 />
               </div>
@@ -449,20 +469,38 @@ const Customers = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Customer Sub-role</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('customerSubRole')}</label>
               <select
                 className="input-field py-2 bg-white"
                 value={subRole}
                 onChange={(e) => setSubRole(e.target.value)}
               >
-                <option value="vehicle_owner">Vehicle Owner</option>
-                <option value="guarantor">Guarantor</option>
+                <option value="vehicle_owner">{t('vehicleOwner')}</option>
+                <option value="guarantor">{t('guarantor')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Photo (optional)</label>
-              <input type="file" accept="image/*" onChange={handlePhotoChange} />
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('photoOptional')}</label>
+              <input
+                id="customer-photo"
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="sr-only"
+              />
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor="customer-photo"
+                  className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  {t('chooseFile')}
+                </label>
+                <span className="truncate text-sm text-slate-500">
+                  {photoFile?.name || t('noFileChosen')}
+                </span>
+              </div>
               {photoPreview && (
                 <div className="mt-2 w-24 h-24 rounded overflow-hidden border">
                   <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
@@ -472,10 +510,10 @@ const Customers = () => {
 
             <div className="md:col-span-3 flex justify-end gap-3 mt-2">
               <button type="button" onClick={resetForm} className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
-                Cancel
+                {t('cancel')}
               </button>
               <button type="submit" disabled={submitting} className="btn-primary w-auto py-2 px-6 shadow-sm">
-                {submitting ? 'Saving...' : 'Save Customer'}
+                {submitting ? t('saving') : t('saveCustomer')}
               </button>
             </div>
           </form>
@@ -490,7 +528,7 @@ const Customers = () => {
             <input
               type="text"
               className="input-field py-2 pl-9 pr-8 text-sm"
-              placeholder="Search by name, mobile or address..."
+              placeholder={t('searchCustomer')}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -516,7 +554,7 @@ const Customers = () => {
           className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10 ml-auto"
         >
           {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
-          {showForm ? 'Cancel' : t('addCustomer')}
+          {showForm ? t('cancel') : t('addCustomer')}
         </button>}
       </div>
 
@@ -531,7 +569,7 @@ const Customers = () => {
                   onClick={() => handleSortToggle('slNo')}
                 >
                   <div className="flex items-center">
-                    Sl. no
+                    {t('serialNumber')}
                     <SortIcon field="slNo" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -551,7 +589,7 @@ const Customers = () => {
                   onClick={() => handleSortToggle('loanNumbers')}
                 >
                   <div className="flex items-center">
-                    Loan Nos.
+                    {t('loanNumbers')}
                     <SortIcon field="loanNumbers" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -561,7 +599,7 @@ const Customers = () => {
             <tbody className="divide-y divide-slate-100">
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-10 text-center text-slate-400">No customers found</td>
+                  <td colSpan="6" className="p-10 text-center text-slate-400">{t('noCustomersFound')}</td>
                 </tr>
               ) : (
                 customers.map((customer, index) => (
@@ -577,7 +615,7 @@ const Customers = () => {
                             onClick={() => setLightboxUrl(customer.photoUrl)}
                           />
                         ) : (
-                          <div className="text-slate-400 text-xs">No Photo</div>
+                          <div className="text-slate-400 text-xs">{t('noPhoto')}</div>
                         )}
                       </div>
                       <div className="truncate max-w-[200px]">
@@ -590,7 +628,7 @@ const Customers = () => {
                     <td className="p-4 text-sm">
                       <div>{customer.mobile}</div>
                       {customer.altMobile && (
-                        <div className="text-[10px] text-slate-400 font-medium">Alt: {customer.altMobile}</div>
+                        <div className="text-[10px] text-slate-400 font-medium">{t('alt')}: {customer.altMobile}</div>
                       )}
                     </td>
                     <td className="p-4 text-sm text-slate-600 max-w-xs truncate">
@@ -614,7 +652,7 @@ const Customers = () => {
                             </Link>
                           ))
                         ) : (
-                          <span className="text-slate-300 text-[10px]">No active loans</span>
+                          <span className="text-slate-300 text-[10px]">{t('noActiveLoans')}</span>
                         )}
                       </div>
                     </td>
@@ -645,10 +683,10 @@ const Customers = () => {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border border-t-0 border-slate-100 rounded-b-xl">
           <div className="text-sm text-slate-600">
-            Showing {(customers.length > 0 ? (page - 1) * pageSize + 1 : 0)}
+            {t('showing')} {(customers.length > 0 ? (page - 1) * pageSize + 1 : 0)}
             {' - '}
             {(customers.length > 0 ? (page - 1) * pageSize + customers.length : 0)}
-            {' of '}
+            {' '}{t('of')}{' '}
             {totalRecords}
           </div>
           <div className="flex items-center gap-3">
@@ -658,19 +696,19 @@ const Customers = () => {
                 disabled={page <= 1}
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
-                Previous
+                {t('previous')}
               </button>
-              <span className="text-sm text-slate-600">Page {page} of {totalPages}</span>
+              <span className="text-sm text-slate-600">{t('page')} {page} {t('of')} {totalPages}</span>
               <button
                 onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={page >= totalPages}
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
-                Next
+                {t('next')}
               </button>
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-700">
-              <label htmlFor="customer-page-size" className="font-medium text-slate-600">Customers per page</label>
+              <label htmlFor="customer-page-size" className="font-medium text-slate-600">{t('customersPerPage')}</label>
               <select
                 id="customer-page-size"
                 value={pageSize}

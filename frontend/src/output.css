@@ -733,6 +733,18 @@ select.input-field{
   }
 }
 
+.sr-only{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 .fixed{
   position: fixed;
 }
@@ -880,6 +892,10 @@ select.input-field{
   display: block;
 }
 
+.inline{
+  display: inline;
+}
+
 .flex{
   display: flex;
 }
@@ -938,6 +954,10 @@ select.input-field{
 
 .max-h-\[95\%\]{
   max-height: 95%;
+}
+
+.min-h-64{
+  min-height: 16rem;
 }
 
 .min-h-\[60vh\]{
@@ -1118,6 +1138,10 @@ select.input-field{
 
 .grid-cols-1{
   grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-\[auto_1fr\]{
+  grid-template-columns: auto 1fr;
 }
 
 .flex-col{

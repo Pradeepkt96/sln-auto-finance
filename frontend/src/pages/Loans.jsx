@@ -23,15 +23,16 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
+  LoaderCircle,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = ['active', 'closed', 'reloan', 'collection'];
 
 const STATUS_STYLES = {
-  active: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: <CheckCircle2 size={12} />, label: 'Active' },
-  closed: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: <XCircle size={12} />, label: 'Closed' },
-  reloan: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: <RefreshCcw size={12} />, label: 'Reloan' },
-  collection: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: <Bell size={12} />, label: 'Collection' },
+  active: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: <CheckCircle2 size={12} />, labelKey: 'statusActive' },
+  closed: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: <XCircle size={12} />, labelKey: 'statusClosed' },
+  reloan: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: <RefreshCcw size={12} />, labelKey: 'statusReloan' },
+  collection: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: <Bell size={12} />, labelKey: 'statusCollection' },
 };
 
 const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
@@ -51,6 +52,10 @@ const Loans = () => {
   const [vehicleMakeDirectory, setVehicleMakeDirectory] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [formOptionsLoading, setFormOptionsLoading] = useState(false);
+  const [formOptionsError, setFormOptionsError] = useState('');
+  const formOptionsLoaded = useRef(false);
+  const initialLoansFetch = useRef(true);
   const [lightboxUrl, setLightboxUrl] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -152,8 +157,10 @@ const Loans = () => {
     try {
       const { data } = await sln.get('/customers?includeLoanNumbers=false&sortBy=name&sortOrder=asc');
       setCustomers(data.map(localizeCustomerRecord));
+      return true;
     } catch (error) {
       console.error('Failed to fetch customers', error);
+      return false;
     }
   }, [localizeCustomerRecord]);
 
@@ -193,27 +200,44 @@ const Loans = () => {
 
   const fetchVehicleMakeDirectory = useCallback(async () => {
     try {
-      const { data } = await sln.get('/loans?sortBy=createdAt&sortOrder=desc');
+      const { data } = await sln.get('/loans/vehicle-makes');
       const uniqueMakes = data
-        .map((loan) => loan.make?.trim())
+        .map((makeName) => makeName?.trim())
         .filter(Boolean)
         .filter((value, index, list) => index === list.findIndex((entry) => entry.toLowerCase() === value.toLowerCase()));
       setVehicleMakeDirectory(uniqueMakes);
+      return true;
     } catch (error) {
       console.error('Failed to fetch vehicle makes', error);
+      return false;
     }
   }, []);
 
+  const loadFormOptions = useCallback(async () => {
+    if (formOptionsLoaded.current || formOptionsLoading) return;
+
+    setFormOptionsLoading(true);
+    setFormOptionsError('');
+    try {
+      const results = await Promise.all([fetchCustomers(), fetchVehicleMakeDirectory()]);
+      formOptionsLoaded.current = results.every(Boolean);
+      if (!formOptionsLoaded.current) {
+        setFormOptionsError('Could not load form options. Please try again.');
+      }
+    } finally {
+      setFormOptionsLoading(false);
+    }
+  }, [fetchCustomers, fetchVehicleMakeDirectory, formOptionsLoading]);
+
   useEffect(() => {
-    fetchCustomers();
+    if (formOptionsLoaded.current) fetchCustomers();
   }, [fetchCustomers]);
 
   useEffect(() => {
-    fetchVehicleMakeDirectory();
-  }, [fetchVehicleMakeDirectory]);
-
-  useEffect(() => {
-    const debounce = setTimeout(() => fetchLoans(), 300);
+    const debounce = setTimeout(() => {
+      initialLoansFetch.current = false;
+      fetchLoans();
+    }, initialLoansFetch.current ? 0 : 300);
     return () => clearTimeout(debounce);
   }, [fetchLoans]);
 
@@ -295,8 +319,10 @@ const Loans = () => {
 
       resetForm();
       fetchLoans();
-      fetchCustomers();
-      fetchVehicleMakeDirectory();
+      if (formOptionsLoaded.current) {
+        fetchCustomers();
+        fetchVehicleMakeDirectory();
+      }
       toast.success('Loan saved successfully');
     } catch (error) {
       console.error('Failed to save loan', error);
@@ -312,8 +338,10 @@ const Loans = () => {
       await sln.delete(`/loans/${id}`);
       toast.success('Loan deleted successfully');
       fetchLoans();
-      fetchCustomers();
-      fetchVehicleMakeDirectory();
+      if (formOptionsLoaded.current) {
+        fetchCustomers();
+        fetchVehicleMakeDirectory();
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error deleting loan');
     }
@@ -337,6 +365,7 @@ const Loans = () => {
     setShowMakeSuggestions(false);
     setActiveMakeSuggestion(-1);
     setShowForm(true);
+    loadFormOptions();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -433,8 +462,9 @@ const Loans = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center p-10">
-        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-10 text-primary-700" role="status" aria-live="polite">
+        <LoaderCircle size={36} className="animate-spin" aria-hidden="true" />
+        <span className="text-sm font-medium">{t('loadingLoans')}</span>
       </div>
     );
   }
@@ -445,7 +475,7 @@ const Loans = () => {
       {lightboxUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setLightboxUrl('')}>
           <div className="max-w-[95%] max-h-[95%] p-4" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setLightboxUrl('')} className="mb-2 text-white text-sm">Close ✕</button>
+            <button onClick={() => setLightboxUrl('')} className="mb-2 text-white text-sm">{t('close')} ✕</button>
             <img src={lightboxUrl} alt="Full size" className="w-full h-full object-contain rounded" />
           </div>
         </div>
@@ -458,6 +488,20 @@ const Loans = () => {
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6">
             {editingId ? 'Edit Loan' : t('createLoan')}
           </h2>
+          {formOptionsLoading && (
+            <div className="mb-4 flex items-center gap-2 text-sm text-primary-700" role="status">
+              <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+              Loading customer and vehicle options...
+            </div>
+          )}
+          {formOptionsError && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+              <span>{formOptionsError}</span>
+              <button type="button" onClick={loadFormOptions} className="font-semibold underline">
+                Retry
+              </button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-6">
 
             {/* Loan Info */}
@@ -506,20 +550,20 @@ const Loans = () => {
                   <FieldError msg={errors.hpaDate} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Owner</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleOwner')}</label>
                   <select className="input-field py-2 bg-white"
                     value={customerRef} onChange={e => setCustomerRef(e.target.value)} required>
-                    <option value="">Select a Vehicle Owner</option>
+                    <option value="">{t('selectCustomer')}</option>
                     {customers.filter(c => c.subRole !== 'guarantor').map(c => (
                       <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Guarantor</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('guarantor')}</label>
                   <select className="input-field py-2 bg-white"
                     value={guarantorRef} onChange={e => setGuarantorRef(e.target.value)}>
-                    <option value="">No Guarantor</option>
+                    <option value="">{t('noGuarantor')}</option>
                     {customers.filter(c => c.subRole === 'guarantor').map(c => (
                       <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
                     ))}
@@ -545,7 +589,7 @@ const Loans = () => {
                   <input type="number" step="0.01" className="input-field py-2"
                     value={emiAmount}
                     onChange={e => { setEmiAmount(e.target.value); setEmiManuallyEdited(true); }}
-                    placeholder="Auto calculated" />
+                    placeholder={t('autoCalculated')} />
                 </div>
               </div>
             </div>
@@ -633,10 +677,12 @@ const Loans = () => {
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
               <button type="button" onClick={resetForm} className="py-2 px-5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium">
-                Cancel
+                {t('cancel')}
               </button>
               <button type="submit" className="btn-primary w-auto py-2 px-8">
-                {editingId ? 'Update Loan' : t('createLoan')}
+                {formOptionsLoading
+                  ? <><LoaderCircle size={16} className="mr-2 inline animate-spin" />Loading...</>
+                  : (editingId ? 'Update Loan' : t('createLoan'))}
               </button>
             </div>
           </form>
@@ -713,11 +759,17 @@ const Loans = () => {
             {t('search')}
           </button>
           {canCreateLoans && <button
-            onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
+            onClick={() => {
+              if (showForm) resetForm();
+              else {
+                setShowForm(true);
+                loadFormOptions();
+              }
+            }}
             className="btn-primary w-full flex items-center justify-center py-2 px-4 shadow-sm"
           >
             {showForm ? <X size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
-            {showForm ? 'Cancel' : t('createLoan')}
+            {showForm ? t('cancel') : t('createLoan')}
           </button>}
         </div>
       </div>
@@ -744,7 +796,7 @@ const Loans = () => {
                   onClick={() => handleSortToggle('hpNumber')}
                 >
                   <div className="flex items-center">
-                    HP no.
+                    {t('hpNumber')}
                     <SortIcon field="hpNumber" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -772,7 +824,7 @@ const Loans = () => {
                   onClick={() => handleSortToggle('loanAmount')}
                 >
                   <div className="flex items-center">
-                    Loan Info
+                    {t('loanInfo')}
                     <SortIcon field="loanAmount" sortBy={sortBy} sortOrder={sortOrder} />
                   </div>
                 </th>
@@ -790,7 +842,7 @@ const Loans = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loans.length === 0 ? (
-                <tr><td colSpan="7" className="p-10 text-center text-slate-400">No loans found</td></tr>
+                <tr><td colSpan="7" className="p-10 text-center text-slate-400">{t('noLoansFound')}</td></tr>
               ) : (
                 loans.map(loan => (
                   <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
@@ -811,7 +863,7 @@ const Loans = () => {
                               onClick={() => setLightboxUrl(loan.customerReference.photoUrl)}
                             />
                           ) : (
-                            <div className="text-slate-400 text-xs">No Photo</div>
+                            <div className="text-slate-400 text-xs">{t('noPhoto')}</div>
                           )}
                         </div>
                         <div>
@@ -819,7 +871,7 @@ const Loans = () => {
                           <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
                           {loan.guarantorReference && (
                             <div className="mt-1 text-[10px] font-semibold text-violet-600">
-                              Guarantor: {loan.guarantorReference.name}
+                              {t('guarantorLabel')} {loan.guarantorReference.name}
                             </div>
                           )}
                         </div>
@@ -830,8 +882,8 @@ const Loans = () => {
                       <div className="text-xs text-slate-400">{loan.make} {loan.vehicleModel}</div>
                     </td>
                     <td className="p-4 align-top">
-                      <div className="font-bold text-primary-600">₹ {loan.emiAmount?.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">EMI</span></div>
-                      <div className="text-[10px] text-slate-500">₹ {loan.loanAmount?.toLocaleString()} Total • {loan.installments} Months</div>
+                      <div className="font-bold text-primary-600">₹ {loan.emiAmount?.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">{t('emi')}</span></div>
+                      <div className="text-[10px] text-slate-500">₹ {loan.loanAmount?.toLocaleString()} {t('total')} • {loan.installments} {t('months')}</div>
                     </td>
                     <td className="p-4 relative align-top whitespace-nowrap" ref={activePickerId === loan._id ? dropdownRef : null}>
                       {
@@ -847,13 +899,13 @@ const Loans = () => {
                               `}
                             >
                               {style.icon}
-                              <span>{loan.status || 'unknown'}</span>
+                              <span>{style.labelKey ? t(style.labelKey) : (loan.status || 'unknown')}</span>
                               <ChevronDownIcon size={12} className={`transition-transform duration-200 ${activePickerId === loan._id ? 'rotate-180' : ''}`} />
                             </button>
                           ) : (
                             <span className={`inline-flex max-w-[150px] items-center justify-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
                               {style.icon}
-                              <span>{loan.status || 'unknown'}</span>
+                              <span>{style.labelKey ? t(style.labelKey) : (loan.status || 'unknown')}</span>
                             </span>
                           );
                         })()
@@ -873,7 +925,7 @@ const Loans = () => {
                               `}
                             >
                               <span className={STATUS_STYLES[s].text}>{STATUS_STYLES[s].icon}</span>
-                              {s}
+                              {t(STATUS_STYLES[s].labelKey)}
                             </button>
                           ))}
                         </div>
@@ -913,10 +965,10 @@ const Loans = () => {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border border-t-0 border-slate-100 rounded-b-xl">
           <div className="text-sm text-slate-600">
-            Showing {(loans.length > 0 ? (page - 1) * pageSize + 1 : 0)}
+            {t('showing')} {(loans.length > 0 ? (page - 1) * pageSize + 1 : 0)}
             {' - '}
             {(loans.length > 0 ? (page - 1) * pageSize + loans.length : 0)}
-            {' of '}
+            {' '}{t('of')}{' '}
             {totalRecords}
           </div>
           <div className="flex items-center gap-3">
@@ -926,19 +978,19 @@ const Loans = () => {
                 disabled={page <= 1}
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
-                Previous
+                {t('previous')}
               </button>
-              <span className="text-sm text-slate-600">Page {page} of {totalPages}</span>
+              <span className="text-sm text-slate-600">{t('page')} {page} {t('of')} {totalPages}</span>
               <button
                 onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={page >= totalPages}
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
               >
-                Next
+                {t('next')}
               </button>
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-700">
-              <label htmlFor="loan-page-size" className="font-medium text-slate-600">Loans per page</label>
+              <label htmlFor="loan-page-size" className="font-medium text-slate-600">{t('loansPerPage')}</label>
               <select
                 id="loan-page-size"
                 value={pageSize}
