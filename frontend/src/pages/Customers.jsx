@@ -15,7 +15,8 @@ import {
   AlertCircle, 
   Edit2, 
   Trash2, 
-  ExternalLink 
+  ExternalLink,
+  MessageSquareText
 } from 'lucide-react';
 
 // Validation helpers
@@ -45,8 +46,8 @@ const Customers = () => {
 
   // Search / Sort / Pagination state
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('slNo');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -89,6 +90,7 @@ const Customers = () => {
       if (search) params.append('search', search);
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('vehicleOwnersOnly', 'true');
       params.append('page', page);
       params.append('pageSize', pageSize);
 
@@ -155,6 +157,9 @@ const Customers = () => {
     }
     const mErr = validateMobile(mobile);
     if (mErr) newErrors.mobile = mErr;
+    else if (customerDirectory.some((customer) => customer.mobile === mobile && customer._id !== editingId)) {
+      newErrors.mobile = t('duplicateMobileNotice');
+    }
     if (altMobile && !MOBILE_REGEX.test(altMobile)) {
       newErrors.altMobile = 'Must be a 10-digit Indian number';
     }
@@ -275,7 +280,13 @@ const Customers = () => {
   const handleMobileChange = (e) => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
     setMobile(val);
-    if (errors.mobile) setErrors(prev => ({ ...prev, mobile: validateMobile(val) }));
+    if (errors.mobile) {
+      const error = validateMobile(val)
+        || (customerDirectory.some((customer) => customer.mobile === val && customer._id !== editingId)
+          ? t('duplicateMobileNotice')
+          : '');
+      setErrors((prev) => ({ ...prev, mobile: error }));
+    }
   };
 
   const FieldError = ({ msg }) =>
@@ -558,6 +569,12 @@ const Customers = () => {
         </button>}
       </div>
 
+      {canEditCustomers && (
+        <p className="text-xs text-slate-500">
+          {t('manualSmsNotice')}
+        </p>
+      )}
+
       {/* Table */}
       <div className="card p-0 overflow-hidden shadow-sm border-slate-100">
         <div className="overflow-x-auto">
@@ -603,7 +620,10 @@ const Customers = () => {
                 </tr>
               ) : (
                 customers.map((customer, index) => (
-                  <tr key={customer._id} className="hover:bg-slate-50 transition-colors group">
+                  <tr
+                    key={customer._id}
+                    className="hover:bg-slate-50 transition-colors group"
+                  >
                     <td className="p-4 text-sm text-slate-400 font-bold">{customer.slNo || index + 1}</td>
                     <td className="p-4 font-bold text-slate-800 flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
@@ -627,6 +647,11 @@ const Customers = () => {
                     </td>
                     <td className="p-4 text-sm">
                       <div>{customer.mobile}</div>
+                      {customer.duplicateMobile && (
+                        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-amber-700" title={t('duplicateMobileNotice')}>
+                          <AlertCircle size={12} /> {t('duplicateMobileNotice')}
+                        </div>
+                      )}
                       {customer.altMobile && (
                         <div className="text-[10px] text-slate-400 font-medium">{t('alt')}: {customer.altMobile}</div>
                       )}
@@ -644,11 +669,23 @@ const Customers = () => {
                         {customer.loanNumbers && customer.loanNumbers.length > 0 ? (
                           customer.loanNumbers.map((loanObj) => (
                             <Link 
-                              key={loanObj.hpNumber} 
+                              key={`${loanObj.role}-${loanObj.hpNumber}`}
                               to={`/loans?hpNumber=${encodeURIComponent(loanObj.hpNumber)}`}
-                              className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                              title={`${loanObj.role === 'guarantor' ? t('guarantor') : t('vehicleOwner')} · ${loanObj.hpNumber}`}
+                              aria-label={`${loanObj.role === 'guarantor' ? t('guarantor') : t('vehicleOwner')} · ${loanObj.hpNumber}${loanObj.hpaDate ? ` (${formatDate(loanObj.hpaDate)})` : ''}`}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                                loanObj.role === 'guarantor'
+                                  ? 'bg-violet-50 text-violet-800 border-violet-200 hover:bg-violet-100 focus-visible:ring-violet-500'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 focus-visible:ring-emerald-500'
+                              }`}
                             >
-                              {loanObj.hpNumber} {loanObj.hpaDate ? `(${formatDate(loanObj.hpaDate)})` : ''} <ExternalLink size={8} className="ml-1" />
+                              <span className={`rounded px-1 text-white ${
+                                loanObj.role === 'guarantor' ? 'bg-violet-700' : 'bg-emerald-700'
+                              }`}>
+                                {loanObj.role === 'guarantor' ? 'G' : 'O'}
+                              </span>
+                              {loanObj.hpNumber} {loanObj.hpaDate ? `(${formatDate(loanObj.hpaDate)})` : ''}
+                              <ExternalLink size={12} strokeWidth={2.5} className="ml-1 shrink-0" />
                             </Link>
                           ))
                         ) : (
@@ -658,6 +695,16 @@ const Customers = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
+                        {canEditCustomers && (
+                          <a
+                            href={`sms:+91${customer.mobile}?body=${encodeURIComponent(t('customerSmsTemplate', { name: customer.name }))}`}
+                            aria-label={t('sendSmsTo', { name: customer.name })}
+                            title={t('composeSms')}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                          >
+                            <MessageSquareText size={16} />
+                          </a>
+                        )}
                         {canEditCustomers && <button 
                           onClick={() => handleEdit(customer)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all"

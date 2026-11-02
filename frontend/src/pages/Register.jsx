@@ -87,6 +87,10 @@ const Register = () => {
 
         {step === 1 ? (
           <form onSubmit={requestOTP} className="space-y-6">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="font-semibold">{t('adminSmsOtpNotice')}</p>
+              <p className="mt-1">{t('adminSmsOtpDescription')}</p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">{t('mobileNumber')}</label>
               <div className="relative">
@@ -146,7 +150,7 @@ const Register = () => {
                   maxLength={6}
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">Check console for OTP mock, or use 123456 for testing</p>
+              <p className="text-xs text-slate-500 mt-1">{t('otpReceivedSms')}</p>
             </div>
 
             <div>

@@ -1,7 +1,7 @@
+const { randomInt } = require('crypto');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 const generateToken = require('../utils/generateToken');
-const { sendOTP } = require('../services/otpService');
 
 // @desc    Register a new user & request OTP
 // @route   POST /api/auth/register
@@ -12,6 +12,9 @@ const requestRegisterOTP = async (req, res) => {
 
     if (!mobile) {
       return res.status(400).json({ message: 'Mobile number is required' });
+    }
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+      return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number' });
     }
 
     const userExists = await User.findOne({ mobile });
@@ -27,25 +30,68 @@ const requestRegisterOTP = async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 5 * 60000); // 5 minutes
 
+    await OTP.updateMany({ mobile, isUsed: false }, { $set: { isUsed: true } });
     await OTP.create({
       mobile,
       otp: otpCode,
       expiry,
+      language: language === 'ta' ? 'ta' : 'en',
     });
 
-    const smsSent = await sendOTP(mobile, otpCode, language);
-
-    if (smsSent) {
-      res.status(200).json({ message: 'OTP sent successfully for registration' });
-    } else {
-      res.status(500).json({ message: 'Failed to send OTP' });
-    }
+    res.status(200).json({ message: 'Registration request received. An admin must send your OTP by SMS.' });
   } catch (error) {
     console.error('requestRegisterOTP error:', error);
     res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
+const getRegistrationOtpRequests = async (req, res) => {
+  try {
+    const requests = await OTP.find({
+      isUsed: false,
+      expiry: { $gt: new Date() },
+      attempts: { $lt: 5 },
+    })
+      .sort({ createdAt: -1 })
+      .select('mobile language createdAt expiry manualSmsPreparedAt')
+      .lean();
+    res.json(requests);
+  } catch (error) {
+    console.error('Failed to fetch registration OTP requests:', error);
+    res.status(500).json({ message: 'Failed to fetch registration OTP requests' });
+  }
+};
+
+const composeRegistrationOtpSms = async (req, res) => {
+  try {
+    const otpRecord = await OTP.findOne({
+      _id: req.params.id,
+      isUsed: false,
+      expiry: { $gt: new Date() },
+      attempts: { $lt: 5 },
+    });
+    if (!otpRecord) {
+      return res.status(404).json({ message: 'Registration OTP request is no longer active' });
+    }
+
+    otpRecord.manualSmsPreparedAt = new Date();
+    await otpRecord.save();
+
+    const message = otpRecord.language === 'ta'
+      ? `ஸ்ரீ லட்சுமி நாராயணா ஆட்டோ ஃபைனான்ஸ் பதிவு OTP: ${otpRecord.otp}. இது 5 நிமிடங்களுக்கு செல்லுபடியாகும். யாருடனும் பகிர வேண்டாம்.`
+      : `Sri Lakshmi Narayana Auto Finance registration OTP: ${otpRecord.otp}. Valid for 5 minutes. Do not share it.`;
+
+    res.json({
+      mobile: otpRecord.mobile,
+      smsUrl: `sms:+91${otpRecord.mobile}?body=${encodeURIComponent(message)}`,
+      preparedAt: otpRecord.manualSmsPreparedAt,
+    });
+  } catch (error) {
+    console.error('Failed to prepare registration OTP SMS:', error);
+    res.status(500).json({ message: 'Failed to prepare registration OTP SMS' });
   }
 };
 
@@ -56,27 +102,30 @@ const verifyRegisterOTP = async (req, res) => {
   try {
     const { username, mobile, otp, password, language } = req.body;
 
-    // Alternate testing OTP
-    if (otp !== '123456') {
-      const otpRecord = await OTP.findOne({ mobile, otp, isUsed: false }).sort({ createdAt: -1 });
-
-      if (!otpRecord) {
-        return res.status(400).json({ message: 'Invalid OTP' });
-      }
-
-      // Check attempts
-      if (otpRecord.attempts >= 5) {
-        return res.status(400).json({ message: 'Too many failed attempts. Please request a new OTP' });
-      }
-
-      if (!otpRecord.isValid()) {
-        return res.status(400).json({ message: 'OTP has expired' });
-      }
-
-      // Mark OTP as used
-      otpRecord.isUsed = true;
-      await otpRecord.save();
+    const otpRecord = await OTP.findOne({ mobile, isUsed: false }).sort({ createdAt: -1 });
+    if (!otpRecord) {
+      return res.status(400).json({ message: 'Invalid OTP' });
     }
+
+    if (otpRecord.attempts >= 5) {
+      return res.status(400).json({ message: 'Too many failed attempts. Please request a new OTP' });
+    }
+    if (!otpRecord.isValid()) {
+      return res.status(400).json({ message: 'OTP has expired' });
+    }
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts += 1;
+      if (otpRecord.attempts >= 5) otpRecord.isUsed = true;
+      await otpRecord.save();
+      return res.status(400).json({
+        message: otpRecord.isUsed
+          ? 'Too many failed attempts. Please request a new OTP'
+          : 'Invalid OTP',
+      });
+    }
+
+    otpRecord.isUsed = true;
+    await otpRecord.save();
 
     // Create User
     const user = await User.create({
@@ -209,6 +258,8 @@ const changePassword = async (req, res) => {
 
 module.exports = {
   requestRegisterOTP,
+  getRegistrationOtpRequests,
+  composeRegistrationOtpSms,
   verifyRegisterOTP,
   loginUser,
   getMe,

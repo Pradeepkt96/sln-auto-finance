@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, LogOut, Phone, Shield, Save, Edit2 } from 'lucide-react';
+import { User, Lock, LogOut, Phone, Shield, Save, Edit2, MessageSquareText, RefreshCw } from 'lucide-react';
 import sln from '../api';
 import { toast } from '../utils/toast';
 
@@ -12,6 +12,9 @@ const Profile = () => {
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [otpRequests, setOtpRequests] = useState([]);
+  const [loadingOtpRequests, setLoadingOtpRequests] = useState(false);
+  const [composingOtpId, setComposingOtpId] = useState('');
 
   const mobile = localStorage.getItem('mobile');
   const role = localStorage.getItem('role');
@@ -52,6 +55,39 @@ const Profile = () => {
       setSaving(false);
     }
   };
+
+  const fetchOtpRequests = useCallback(async () => {
+    setLoadingOtpRequests(true);
+    try {
+      const { data } = await sln.get('/auth/registration-otp-requests');
+      setOtpRequests(data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || t('registrationOtpRequestsFailed'));
+    } finally {
+      setLoadingOtpRequests(false);
+    }
+  }, [t]);
+
+  const handleComposeRegistrationOtp = useCallback(async (requestId) => {
+    setComposingOtpId(requestId);
+    try {
+      const { data } = await sln.post(`/auth/registration-otp-requests/${requestId}/compose`);
+      setOtpRequests((current) => current.map((request) => (
+        request._id === requestId
+          ? { ...request, manualSmsPreparedAt: data.preparedAt }
+          : request
+      )));
+      window.location.href = data.smsUrl;
+    } catch (error) {
+      toast.error(error.response?.data?.message || t('registrationOtpComposeFailed'));
+    } finally {
+      setComposingOtpId('');
+    }
+  }, [fetchOtpRequests, t]);
+
+  useEffect(() => {
+    if (role === 'admin') fetchOtpRequests();
+  }, [role, fetchOtpRequests]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -122,6 +158,55 @@ const Profile = () => {
             </div>
           </div>
         </div>
+
+        {role === 'admin' && (
+          <section className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <MessageSquareText size={20} className="text-amber-700" />
+                <div>
+                  <h3 className="font-semibold text-amber-900">{t('registrationOtpRequests')}</h3>
+                  <p className="text-xs text-amber-800">{t('registrationOtpAdminNotice')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={fetchOtpRequests}
+                disabled={loadingOtpRequests}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-60"
+              >
+                <RefreshCw size={15} className={loadingOtpRequests ? 'animate-spin' : ''} />
+                {loadingOtpRequests ? t('loadingRegistrationOtpRequests') : t('refreshRegistrationOtpRequests')}
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 border-t border-amber-200 pt-3">
+              {otpRequests.length === 0 ? (
+                <p className="text-sm text-amber-800">{t('noPendingRegistrationOtpRequests')}</p>
+              ) : otpRequests.map((request) => (
+                <div key={request._id} className="flex flex-col gap-3 rounded-lg bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-800">+91 {request.mobile}</p>
+                    <p className="text-xs text-slate-500">
+                      {t('registrationOtpRequestedAt', { date: new Date(request.createdAt).toLocaleString() })}
+                    </p>
+                    {request.manualSmsPreparedAt && (
+                      <p className="text-xs text-amber-700">{t('registrationOtpSmsPrepared')}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleComposeRegistrationOtp(request._id)}
+                    disabled={composingOtpId === request._id}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-60"
+                  >
+                    <MessageSquareText size={15} />
+                    {composingOtpId === request._id ? t('preparingSms') : t('composeRegistrationOtpSms')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <button

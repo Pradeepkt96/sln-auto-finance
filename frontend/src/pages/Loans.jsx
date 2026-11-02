@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCcw,
-  Bell,
+  HandCoins,
   ChevronDown as ChevronDownIcon,
   AlertCircle,
   Edit2,
@@ -32,7 +32,7 @@ const STATUS_STYLES = {
   active: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: <CheckCircle2 size={12} />, labelKey: 'statusActive' },
   closed: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: <XCircle size={12} />, labelKey: 'statusClosed' },
   reloan: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: <RefreshCcw size={12} />, labelKey: 'statusReloan' },
-  collection: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: <Bell size={12} />, labelKey: 'statusCollection' },
+  collection: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: <HandCoins size={14} strokeWidth={2.5} />, labelKey: 'statusCollection' },
 };
 
 const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
@@ -57,6 +57,7 @@ const Loans = () => {
   const formOptionsLoaded = useRef(false);
   const initialLoansFetch = useRef(true);
   const [lightboxUrl, setLightboxUrl] = useState('');
+  const [hoveredLoanId, setHoveredLoanId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -66,8 +67,8 @@ const Loans = () => {
   const [searchCustomer, setSearchCustomer] = useState('');
   const [searchVehicle, setSearchVehicle] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy, setSortBy] = useState('hpNumber');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -845,7 +846,17 @@ const Loans = () => {
                 <tr><td colSpan="7" className="p-10 text-center text-slate-400">{t('noLoansFound')}</td></tr>
               ) : (
                 loans.map(loan => (
-                  <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
+                  <tr
+                    key={loan._id}
+                    className="hover:bg-slate-50 transition-colors group"
+                    tabIndex={0}
+                    onMouseEnter={() => setHoveredLoanId(loan._id)}
+                    onMouseLeave={() => setHoveredLoanId(null)}
+                    onFocus={() => setHoveredLoanId(loan._id)}
+                    onBlur={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) setHoveredLoanId(null);
+                    }}
+                  >
                     <td className="p-4 align-top">
                       <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono tracking-wide">{loan.hpNumber}</span>
                     </td>
@@ -867,11 +878,21 @@ const Loans = () => {
                           )}
                         </div>
                         <div>
+                          <div className="flex items-center gap-1">
+                            <span className="rounded bg-emerald-700 px-1 text-[9px] font-bold text-white">O</span>
+                            <span className="text-[10px] font-semibold text-slate-400">{t('vehicleOwner')}</span>
+                          </div>
                           <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
                           <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
                           {loan.guarantorReference && (
-                            <div className="mt-1 text-[10px] font-semibold text-violet-600">
-                              {t('guarantorLabel')} {loan.guarantorReference.name}
+                            <div className={`mt-1 text-[10px] text-violet-600 ${
+                              hoveredLoanId === loan._id ? 'block' : 'hidden'
+                            }`}>
+                              <div className="flex items-center gap-1 font-semibold">
+                                <span className="rounded bg-violet-700 px-1 text-[9px] text-white">G</span>
+                                {t('guarantorLabel')} {loan.guarantorReference.name}
+                              </div>
+                              <div className="text-violet-500">+91 {loan.guarantorReference.mobile}</div>
                             </div>
                           )}
                         </div>
@@ -893,18 +914,20 @@ const Loans = () => {
                             <button
                               onClick={() => setActivePickerId(activePickerId === loan._id ? null : loan._id)}
                               disabled={changingStatus === loan._id}
-                              className={`flex w-full max-w-[150px] items-center justify-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all shadow-sm
+                              className={`flex w-full min-w-[150px] max-w-[150px] items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all shadow-sm
                                 ${style.bg} ${style.text} ${style.border}
                                 hover:shadow-md active:scale-95 disabled:opacity-50
                               `}
+                              aria-haspopup="listbox"
+                              aria-expanded={activePickerId === loan._id}
                             >
-                              {style.icon}
-                              <span>{style.labelKey ? t(style.labelKey) : (loan.status || 'unknown')}</span>
-                              <ChevronDownIcon size={12} className={`transition-transform duration-200 ${activePickerId === loan._id ? 'rotate-180' : ''}`} />
+                              <span className="inline-flex shrink-0">{style.icon}</span>
+                              <span className="flex-1 text-center">{style.labelKey ? t(style.labelKey) : (loan.status || 'unknown')}</span>
+                              <ChevronDownIcon size={14} strokeWidth={2.5} className={`ml-auto shrink-0 transition-transform duration-200 ${activePickerId === loan._id ? 'rotate-180' : ''}`} />
                             </button>
                           ) : (
                             <span className={`inline-flex max-w-[150px] items-center justify-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
-                              {style.icon}
+                              <span className="inline-flex shrink-0">{style.icon}</span>
                               <span>{style.labelKey ? t(style.labelKey) : (loan.status || 'unknown')}</span>
                             </span>
                           );
@@ -924,7 +947,7 @@ const Loans = () => {
                                 ${loan.status === s ? 'bg-slate-50 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}
                               `}
                             >
-                              <span className={STATUS_STYLES[s].text}>{STATUS_STYLES[s].icon}</span>
+                              <span className={`inline-flex shrink-0 ${STATUS_STYLES[s].text}`}>{STATUS_STYLES[s].icon}</span>
                               {t(STATUS_STYLES[s].labelKey)}
                             </button>
                           ))}

@@ -13,7 +13,15 @@ const {
 // @access  Private
 const getCustomers = async (req, res) => {
   try {
-    const { search, sortBy, sortOrder, includeLoanNumbers = 'true', page, pageSize } = req.query;
+    const {
+      search,
+      sortBy,
+      sortOrder,
+      includeLoanNumbers = 'true',
+      vehicleOwnersOnly,
+      page,
+      pageSize,
+    } = req.query;
     const shouldIncludeLoanNumbers = includeLoanNumbers !== 'false';
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
@@ -26,11 +34,22 @@ const getCustomers = async (req, res) => {
     const skip = shouldPaginate ? (effectivePage - 1) * effectivePageSize : 0;
 
     let query = {};
+    if (vehicleOwnersOnly === 'true') {
+      const guarantorIds = await Loan.distinct('guarantorReference', {
+        guarantorReference: { $ne: null },
+      });
+      query = {
+        $or: [
+          { subRole: 'vehicle_owner' },
+          { _id: { $in: guarantorIds } },
+        ],
+      };
+    }
 
     // Search by split or legacy name, mobile, or address
     if (search && search.trim()) {
       const term = search.trim();
-      query = {
+      const searchQuery = {
         $or: [
           { name: { $regex: term, $options: 'i' } },
           { firstName: { $regex: term, $options: 'i' } },
@@ -40,6 +59,9 @@ const getCustomers = async (req, res) => {
           { address: { $regex: term, $options: 'i' } },
         ],
       };
+      query = Object.keys(query).length
+        ? { $and: [query, searchQuery] }
+        : searchQuery;
     }
 
     // Build sort object
@@ -48,7 +70,7 @@ const getCustomers = async (req, res) => {
     const isSpecialSort = sortBy === 'loanNumbers';
     
     if (!isSpecialSort) {
-      const field = allowedSortFields.includes(sortBy) ? sortBy : 'slNo';
+      const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
       sort[field] = sortOrder === 'asc' ? 1 : -1;
     }
 
@@ -56,22 +78,48 @@ const getCustomers = async (req, res) => {
     let totalRecords = 0;
     if (shouldPaginate && !isSpecialSort) {
       totalRecords = await Customer.countDocuments(query);
-      customers = await Customer.find(query)
-        .sort(sort)
-        .skip(skip)
-        .limit(effectivePageSize)
-        .lean();
-    } else {
-      customers = await Customer.find(query).sort(sort).lean();
-      if (shouldPaginate) {
-        totalRecords = customers.length;
+      if (vehicleOwnersOnly === 'true') {
+        const field = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+        const direction = sortOrder === 'asc' ? 1 : -1;
+        customers = await Customer.aggregate([
+          { $match: query },
+          {
+            $addFields: {
+              customerRoleOrder: {
+                $cond: [{ $eq: ['$subRole', 'guarantor'] }, 1, 0],
+              },
+            },
+          },
+          { $sort: { customerRoleOrder: 1, [field]: direction, _id: 1 } },
+          { $skip: skip },
+          { $limit: effectivePageSize },
+          { $project: { customerRoleOrder: 0 } },
+        ]);
+      } else {
+        customers = await Customer.find(query)
+          .sort(sort)
+          .skip(skip)
+          .limit(effectivePageSize)
+          .lean();
       }
+    } else {
+      if (shouldPaginate) {
+        totalRecords = await Customer.countDocuments(query);
+      }
+      customers = await Customer.find(query).sort(sort).lean();
     }
+
+    const duplicatedMobiles = await Customer.aggregate([
+      { $group: { _id: '$mobile', count: { $sum: 1 } } },
+      { $match: { count: { $gt: 1 } } },
+    ]);
+    const duplicateMobileNumbers = new Set(duplicatedMobiles.map(({ _id }) => _id));
 
     const normalizedCustomers = customers.map((customer) => ({
       ...customer,
       ...normalizeCustomerName(customer),
       name: getCustomerDisplayName(customer),
+      duplicateMobile: duplicateMobileNumbers.has(customer.mobile),
     }));
 
     if (!shouldIncludeLoanNumbers) {
@@ -90,22 +138,32 @@ const getCustomers = async (req, res) => {
     }
 
     const customerIds = normalizedCustomers.map((customer) => customer._id);
-    const loans = await Loan.find(
-      { customerReference: { $in: customerIds } },
-      'customerReference hpNumber hpaDate'
-    ).lean();
+    const customerIdSet = new Set(customerIds.map((id) => id.toString()));
+    const loans = await Loan.find({
+      $or: [
+        { customerReference: { $in: customerIds } },
+        { guarantorReference: { $in: customerIds } },
+      ],
+    }, 'customerReference guarantorReference hpNumber hpaDate').lean();
 
     const loansByCustomerId = new Map();
     loans.forEach((loan) => {
-      const customerId = loan.customerReference?.toString();
-      if (!customerId) return;
-      if (!loansByCustomerId.has(customerId)) {
-        loansByCustomerId.set(customerId, []);
-      }
-      loansByCustomerId.get(customerId).push({
+      const ownerId = loan.customerReference?.toString();
+      const guarantorId = loan.guarantorReference?.toString();
+      const loanDetails = {
         hpNumber: loan.hpNumber,
         hpaDate: loan.hpaDate,
-      });
+      };
+
+      if (customerIdSet.has(ownerId)) {
+        if (!loansByCustomerId.has(ownerId)) loansByCustomerId.set(ownerId, []);
+        loansByCustomerId.get(ownerId).push({ ...loanDetails, role: 'vehicle_owner' });
+      }
+
+      if (guarantorId && customerIdSet.has(guarantorId)) {
+        if (!loansByCustomerId.has(guarantorId)) loansByCustomerId.set(guarantorId, []);
+        loansByCustomerId.get(guarantorId).push({ ...loanDetails, role: 'guarantor' });
+      }
     });
 
     const customersWithLoans = normalizedCustomers.map((customer) => ({
@@ -113,13 +171,30 @@ const getCustomers = async (req, res) => {
       loanNumbers: loansByCustomerId.get(customer._id.toString()) || [],
     }));
 
-    if (isSpecialSort) {
+    if (vehicleOwnersOnly === 'true' && !isSpecialSort) {
       customersWithLoans.sort((a, b) => {
+        const roleOrderA = a.subRole === 'guarantor' ? 1 : 0;
+        const roleOrderB = b.subRole === 'guarantor' ? 1 : 0;
+        return roleOrderA - roleOrderB;
+      });
+    } else if (isSpecialSort) {
+      customersWithLoans.sort((a, b) => {
+        if (vehicleOwnersOnly === 'true') {
+          const roleOrderA = a.subRole === 'guarantor' ? 1 : 0;
+          const roleOrderB = b.subRole === 'guarantor' ? 1 : 0;
+          if (roleOrderA !== roleOrderB) return roleOrderA - roleOrderB;
+        }
+
         const valA = a.loanNumbers && a.loanNumbers.length > 0 ? a.loanNumbers[0].hpNumber.toString().toLowerCase() : '';
         const valB = b.loanNumbers && b.loanNumbers.length > 0 ? b.loanNumbers[0].hpNumber.toString().toLowerCase() : '';
         
-        if (sortOrder === 'asc') return valA.localeCompare(valB, undefined, { numeric: true });
-        return valB.localeCompare(valA, undefined, { numeric: true });
+        const loanNumberOrder = valA.localeCompare(valB, undefined, { numeric: true });
+        if (loanNumberOrder !== 0) {
+          return sortOrder === 'asc' ? loanNumberOrder : -loanNumberOrder;
+        }
+
+        const dateOrder = new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        return dateOrder || a._id.toString().localeCompare(b._id.toString());
       });
     }
 
@@ -127,8 +202,12 @@ const getCustomers = async (req, res) => {
       return res.json(customersWithLoans);
     }
 
+    const paginatedCustomers = isSpecialSort
+      ? customersWithLoans.slice(skip, skip + effectivePageSize)
+      : customersWithLoans;
+
     return res.json({
-      items: customersWithLoans,
+      items: paginatedCustomers,
       meta: {
         page: effectivePage,
         pageSize: effectivePageSize,
@@ -171,6 +250,11 @@ const createCustomer = async (req, res) => {
   }
 
   try {
+    const existingCustomer = await Customer.findOne({ mobile }).select('_id');
+    if (existingCustomer) {
+      return res.status(409).json({ message: 'A customer with this mobile number already exists' });
+    }
+
     const result = await Customer.aggregate([{ $group: { _id: null, maxSlNo: { $max: '$slNo' } } }]);
     const slNo = result.length > 0 && result[0].maxSlNo ? result[0].maxSlNo + 1 : 1;
 
@@ -190,8 +274,8 @@ const createCustomer = async (req, res) => {
     res.status(201).json(customer);
   } catch (error) {
     console.error('Customer Creation Error:', error);
-    if (error.code === 11000) {
-      return res.status(400).json({ message: 'Customer with this mobile number already exists' });
+    if (error.code === 11000 && error.keyPattern?.mobile) {
+      return res.status(409).json({ message: 'A customer with this mobile number already exists' });
     }
     res.status(500).json({ message: error.message || 'Server error adding customer' });
   }
@@ -221,6 +305,16 @@ const updateCustomer = async (req, res) => {
     if (update.relationType && !['S/O', 'W/O', 'C/O'].includes(update.relationType)) {
       return res.status(400).json({ message: 'Invalid customer relationship type' });
     }
+    if (update.mobile !== undefined) {
+      const mobileRegex = /^[6-9]\d{9}$/;
+      if (!mobileRegex.test(update.mobile)) {
+        return res.status(400).json({ message: 'Invalid mobile number. Must be a 10-digit Indian number starting with 6-9.' });
+      }
+      const duplicate = await Customer.findOne({ mobile: update.mobile, _id: { $ne: req.params.id } }).select('_id');
+      if (duplicate) {
+        return res.status(409).json({ message: 'A customer with this mobile number already exists' });
+      }
+    }
 
     const customer = await Customer.findByIdAndUpdate(req.params.id, update, {
       returnDocument: 'after',
@@ -234,6 +328,9 @@ const updateCustomer = async (req, res) => {
     res.json(customer);
   } catch (error) {
     console.error('Customer Update Error:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'A customer with this mobile number already exists' });
+    }
     res.status(500).json({ message: error.message || 'Server error updating customer' });
   }
 };

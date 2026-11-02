@@ -10,6 +10,14 @@ const otpSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    language: {
+      type: String,
+      enum: ['en', 'ta'],
+      default: 'en',
+    },
+    manualSmsPreparedAt: {
+      type: Date,
+    },
     expiry: {
       type: Date,
       required: true,
