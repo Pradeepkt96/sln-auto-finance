@@ -40,7 +40,7 @@ const getCustomers = async (req, res) => {
       });
       query = {
         $or: [
-          { subRole: 'vehicle_owner' },
+          { subRole: { $in: ['vehicle_owner', 'hirer', null] } },
           { _id: { $in: guarantorIds } },
         ],
       };
