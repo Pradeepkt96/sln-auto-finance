@@ -2,6 +2,7 @@ const { randomInt } = require('crypto');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 const generateToken = require('../utils/generateToken');
+const { isPasswordValid } = require('../utils/passwordPolicy');
 
 // @desc    Register a new user & request OTP
 // @route   POST /api/auth/register
@@ -101,6 +102,12 @@ const composeRegistrationOtpSms = async (req, res) => {
 const verifyRegisterOTP = async (req, res) => {
   try {
     const { username, mobile, otp, password, language } = req.body;
+
+    if (!isPasswordValid(password, username)) {
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character. It must not match your username.',
+      });
+    }
 
     const otpRecord = await OTP.findOne({ mobile, isUsed: false }).sort({ createdAt: -1 });
     if (!otpRecord) {
@@ -239,6 +246,12 @@ const updateProfile = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
+
+    if (!isPasswordValid(newPassword, req.user.username)) {
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character. It must not match your username.',
+      });
+    }
     
     // req.user is set by authMiddleware protect
     const user = await User.findById(req.user._id);

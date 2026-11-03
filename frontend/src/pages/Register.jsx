@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
 import sln from '../api';
 import { UserPlus, Phone, Lock, Hash, Eye, EyeOff, User } from 'lucide-react';
+import PasswordStrength from '../components/PasswordStrength';
+import { getPasswordStrength } from '../utils/passwordStrength';
 
 const Register = () => {
   const { t, i18n } = useTranslation();
@@ -40,6 +42,10 @@ const Register = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (!getPasswordStrength(password, username).isValid) {
+      setError(t('passwordRequirementsNotMet'));
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -57,6 +63,9 @@ const Register = () => {
       localStorage.setItem('role', data.role);
       localStorage.setItem('mobile', data.mobile);
       localStorage.setItem('language', data.language);
+      if (data.username) {
+        localStorage.setItem('username', data.username);
+      }
 
       navigate('/loans');
     } catch (err) {
@@ -164,7 +173,7 @@ const Register = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create a password"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <button
                   type="button"
@@ -174,6 +183,7 @@ const Register = () => {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              <PasswordStrength password={password} username={username} />
             </div>
 
             <button

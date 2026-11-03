@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import sln from '../api';
 import { Lock, Eye, EyeOff, Save } from 'lucide-react';
+import PasswordStrength from '../components/PasswordStrength';
+import { getPasswordStrength } from '../utils/passwordStrength';
 
 const ChangePassword = () => {
   const { t } = useTranslation();
@@ -10,6 +12,7 @@ const ChangePassword = () => {
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [username] = useState(localStorage.getItem('username') || '');
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   
@@ -19,6 +22,10 @@ const ChangePassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!getPasswordStrength(newPassword, username).isValid) {
+      setError(t('passwordRequirementsNotMet'));
+      return;
+    }
     setLoading(true);
     setError('');
     setMessage('');
@@ -90,7 +97,7 @@ const ChangePassword = () => {
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Create new password"
                 required
-                minLength={6}
+                minLength={8}
               />
               <button
                 type="button"
@@ -100,6 +107,7 @@ const ChangePassword = () => {
                 {showNew ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+            <PasswordStrength password={newPassword} username={username} />
           </div>
 
           <button
