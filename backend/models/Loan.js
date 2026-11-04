@@ -16,6 +16,10 @@ const loanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Customer',
     },
+    reloanFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Loan',
+    },
     // Vehicle details
     vehicleNumber: {
       type: String,

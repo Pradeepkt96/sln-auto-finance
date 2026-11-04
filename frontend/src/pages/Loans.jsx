@@ -37,6 +37,17 @@ const STATUS_STYLES = {
 
 const VEHICLE_REGEX = /^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$/;
 
+const calculateAutoEmi = (amount, rate, installmentCount) => {
+  if (!amount || !rate || !installmentCount) return '';
+  const principal = parseFloat(amount);
+  const monthlyRate = parseFloat(rate) / 100;
+  const count = parseInt(installmentCount, 10);
+  if (!principal || !count) return '';
+  const emi = (principal * monthlyRate) + principal / count;
+  const roundedEmi = Math.round(emi / 100) * 100;
+  return Number.isNaN(roundedEmi) ? '' : roundedEmi.toFixed(2);
+};
+
 const SortIcon = ({ field, sortBy, sortOrder }) => {
   if (sortBy !== field) return <ArrowUpDown size={13} className="ml-1 text-slate-400" />;
   return sortOrder === 'asc'
@@ -57,9 +68,13 @@ const Loans = () => {
   const formOptionsLoaded = useRef(false);
   const initialLoansFetch = useRef(true);
   const [lightboxUrl, setLightboxUrl] = useState('');
-  const [hoveredLoanId, setHoveredLoanId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [reloanSourceId, setReloanSourceId] = useState(null);
+  const [reloanDialogLoan, setReloanDialogLoan] = useState(null);
+  const [reloanHpNumber, setReloanHpNumber] = useState('');
+  const [deleteDialogLoan, setDeleteDialogLoan] = useState(null);
+  const [deletingLoanId, setDeletingLoanId] = useState(null);
 
   // Search / Filter / Sort / Pagination
   const [searchHpNumber, setSearchHpNumber] = useState(() => searchParams.get('hpNumber') || '');
@@ -125,25 +140,12 @@ const Loans = () => {
   // Validation
   const [errors, setErrors] = useState({});
 
-  const roundToNearestHundred = (value) => Math.round(value / 100) * 100;
-
-  const getAutoEmi = () => {
-    if (!loanAmount || !interestRate || !installments) return '';
-    const p = parseFloat(loanAmount);
-    const r = parseFloat(interestRate) / 100;
-    const n = parseInt(installments, 10);
-    if (!p || !n) return '';
-    const emi = (p * r) + p / n;
-    const roundedEmi = roundToNearestHundred(emi);
-    return isNaN(roundedEmi) ? '' : roundedEmi.toFixed(2);
-  };
-
-  const autoEmi = getAutoEmi();
+  const autoEmi = calculateAutoEmi(loanAmount, interestRate, installments);
 
   useEffect(() => {
-    const autoValue = getAutoEmi();
-    if (!emiManuallyEdited) setEmiAmount(autoValue);
-  }, [loanAmount, interestRate, installments]);
+    const autoValue = calculateAutoEmi(loanAmount, interestRate, installments);
+    if (!emiManuallyEdited || reloanSourceId !== null) setEmiAmount(autoValue);
+  }, [loanAmount, interestRate, installments, emiManuallyEdited, reloanSourceId]);
 
   const localizeCustomerRecord = useCallback((customer) => {
     if (!customer) return customer;
@@ -288,6 +290,7 @@ const Loans = () => {
     setActiveMakeSuggestion(-1);
     setErrors({});
     setEditingId(null);
+    setReloanSourceId(null);
     setShowForm(false);
   };
 
@@ -309,6 +312,7 @@ const Loans = () => {
       installments: Number(installments),
       emiAmount: emiAmount !== '' ? Number(emiAmount) : Number(autoEmi),
       hpaDate: isoHpaDate,
+      ...(reloanSourceId !== null ? { reloanFrom: reloanSourceId } : {}),
     };
 
     try {
@@ -318,25 +322,32 @@ const Loans = () => {
         await sln.post('/loans', payload);
       }
 
+      const savedReloan = reloanSourceId !== null;
       resetForm();
       fetchLoans();
       if (formOptionsLoaded.current) {
         fetchCustomers();
         fetchVehicleMakeDirectory();
       }
-      toast.success('Loan saved successfully');
+      toast.success(savedReloan ? t('reloanSavedSuccessfully') : 'Loan saved successfully');
     } catch (error) {
       console.error('Failed to save loan', error);
       toast.error(error.response?.data?.message || 'Error saving loan');
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (loan) => {
     if (!canDeleteLoans) return;
-    if (!window.confirm('Are you sure you want to delete this loan and all associated payments?')) return;
+    setDeleteDialogLoan(loan);
+  };
 
+  const confirmDeleteLoan = async () => {
+    if (!deleteDialogLoan || deletingLoanId) return;
+    const loanId = deleteDialogLoan._id;
+    setDeletingLoanId(loanId);
     try {
-      await sln.delete(`/loans/${id}`);
+      await sln.delete(`/loans/${loanId}`);
+      setDeleteDialogLoan(null);
       toast.success('Loan deleted successfully');
       fetchLoans();
       if (formOptionsLoaded.current) {
@@ -345,11 +356,14 @@ const Loans = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error deleting loan');
+    } finally {
+      setDeletingLoanId(null);
     }
   };
 
   const handleEdit = (loan) => {
     setEditingId(loan._id);
+    setReloanSourceId(null);
     setHpNumber(loan.hpNumber);
     setCustomerRef(loan.customerReference?._id || '');
     setGuarantorRef(loan.guarantorReference?._id || '');
@@ -370,11 +384,21 @@ const Loans = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleStatusChange = async (loanId, newStatus) => {
-    setChangingStatus(loanId);
+  const handleStatusChange = async (loan, newStatus) => {
+    if (newStatus === 'reloan') {
+      if (loan.reloanFrom || loan.hasActiveReloan) {
+        toast.warning(t(loan.reloanFrom ? 'reloanCannotRepeat' : 'activeReloanExists'));
+        return;
+      }
+      setReloanDialogLoan(loan);
+      setReloanHpNumber('');
+      return;
+    }
+
+    setChangingStatus(loan._id);
     try {
-      const { data } = await sln.put(`/loans/${loanId}/status`, { status: newStatus });
-      setLoans(prev => prev.map(l => l._id === loanId ? { ...l, status: data.status } : l));
+      const { data } = await sln.put(`/loans/${loan._id}/status`, { status: newStatus });
+      setLoans(prev => prev.map(l => l._id === loan._id ? { ...l, status: data.status } : l));
       toast.success('Status updated successfully');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Failed to update status';
@@ -382,6 +406,49 @@ const Loans = () => {
     } finally {
       setChangingStatus(null);
     }
+  };
+
+  const startReloan = () => {
+    if (!reloanDialogLoan) return;
+    if (reloanDialogLoan.reloanFrom || reloanDialogLoan.hasActiveReloan) {
+      setReloanDialogLoan(null);
+      toast.warning(t(reloanDialogLoan.reloanFrom ? 'reloanCannotRepeat' : 'activeReloanExists'));
+      return;
+    }
+
+    const newHpNumber = reloanHpNumber.trim();
+    if (!newHpNumber) {
+      toast.error(t('reloanHpNumberRequired'));
+      return;
+    }
+    if (newHpNumber === reloanDialogLoan.hpNumber) {
+      toast.error(t('reloanHpNumberMustChange'));
+      return;
+    }
+
+    const loan = reloanDialogLoan;
+    setReloanDialogLoan(null);
+    setReloanHpNumber('');
+    setEditingId(null);
+    setReloanSourceId(loan._id);
+    setHpNumber(newHpNumber);
+    setCustomerRef(loan.customerReference?._id || '');
+    setGuarantorRef(loan.guarantorReference?._id || '');
+    setLoanAmount(loan.loanAmount);
+    setInterestRate(loan.interestRate);
+    setInstallments(loan.installments);
+    setEmiAmount(loan.emiAmount);
+    setEmiManuallyEdited(false);
+    setVehicleNumber(loan.vehicleNumber);
+    setMake(loan.make);
+    setVehicleModel(loan.vehicleModel);
+    setColor(loan.color);
+    setHpaDate(toDisplayInputDate(loan.hpaDate));
+    setShowMakeSuggestions(false);
+    setActiveMakeSuggestion(-1);
+    setShowForm(true);
+    loadFormOptions();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const FieldError = ({ msg }) =>
@@ -481,14 +548,136 @@ const Loans = () => {
           </div>
         </div>
       )}
+      {reloanDialogLoan && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+          onClick={() => setReloanDialogLoan(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reloan-dialog-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                <RefreshCcw size={19} />
+              </span>
+              <div>
+                <h2 id="reloan-dialog-title" className="text-lg font-bold text-slate-900">
+                  {t('reloanDialogTitle')}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {t('reloanDialogDescription', { hpNumber: reloanDialogLoan.hpNumber })}
+                </p>
+              </div>
+            </div>
+            <label htmlFor="reloan-hp-number" className="mb-1 block text-sm font-medium text-slate-700">
+              {t('loanNumber')}
+            </label>
+            <input
+              id="reloan-hp-number"
+              type="text"
+              autoFocus
+              className="input-field py-2"
+              placeholder={t('reloanHpNumberPlaceholder')}
+              value={reloanHpNumber}
+              onChange={(event) => setReloanHpNumber(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') startReloan();
+                if (event.key === 'Escape') setReloanDialogLoan(null);
+              }}
+            />
+            <p className="mt-2 text-xs text-slate-500">{t('reloanDialogNewRecordNotice')}</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setReloanDialogLoan(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={startReloan}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                {t('continue')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteDialogLoan && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+          onClick={() => {
+            if (deletingLoanId === null) setDeleteDialogLoan(null);
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-loan-dialog-title"
+            aria-describedby="delete-loan-dialog-description"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <Trash2 size={19} />
+              </span>
+              <div>
+                <h2 id="delete-loan-dialog-title" className="text-lg font-bold text-slate-900">
+                  {t('deleteLoanTitle')}
+                </h2>
+                <p id="delete-loan-dialog-description" className="mt-1 text-sm leading-5 text-slate-600">
+                  {t('deleteLoanConfirmation', { hpNumber: deleteDialogLoan.hpNumber })}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              {t('deleteLoanWarning')}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={deletingLoanId !== null}
+                onClick={() => setDeleteDialogLoan(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={deletingLoanId !== null}
+                onClick={confirmDeleteLoan}
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingLoanId !== null && <LoaderCircle size={15} className="animate-spin" aria-hidden="true" />}
+                {deletingLoanId !== null ? t('deletingLoan') : t('deleteLoan')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Form */}
 
       {/* Form */}
       {showForm && canEditLoans && (
         <div className="card glass animate-in fade-in slide-in-from-top-4 duration-300 border-t-4 border-t-primary-500">
           <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6">
-            {editingId ? 'Edit Loan' : t('createLoan')}
+            {reloanSourceId !== null ? t('reloanTitle') : editingId ? 'Edit Loan' : t('createLoan')}
           </h2>
+          {reloanSourceId !== null && (
+            <div className="mb-5 space-y-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900" role="status">
+              <p>{t('reloanOnlyLoanInfoNotice')}</p>
+              {loans.find((loan) => loan._id === reloanSourceId)?.guarantorReference && (
+                <p className="font-medium">{t('reloanGuarantorNotice')}</p>
+              )}
+            </div>
+          )}
           {formOptionsLoading && (
             <div className="mb-4 flex items-center gap-2 text-sm text-primary-700" role="status">
               <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
@@ -553,9 +742,10 @@ const Loans = () => {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('vehicleOwner')}</label>
                   <select className="input-field py-2 bg-white"
-                    value={customerRef} onChange={e => setCustomerRef(e.target.value)} required>
+                    value={customerRef} onChange={e => setCustomerRef(e.target.value)} required
+                    disabled={reloanSourceId !== null}>
                     <option value="">{t('selectCustomer')}</option>
-                    {customers.filter(c => c.subRole !== 'guarantor').map(c => (
+                    {customers.filter(c => c._id !== guarantorRef).map(c => (
                       <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
                     ))}
                   </select>
@@ -563,9 +753,10 @@ const Loans = () => {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('guarantor')}</label>
                   <select className="input-field py-2 bg-white"
-                    value={guarantorRef} onChange={e => setGuarantorRef(e.target.value)}>
+                    value={guarantorRef} onChange={e => setGuarantorRef(e.target.value)}
+                    disabled={reloanSourceId !== null}>
                     <option value="">{t('noGuarantor')}</option>
-                    {customers.filter(c => c.subRole === 'guarantor').map(c => (
+                    {customers.filter(c => c._id !== customerRef).map(c => (
                       <option key={c._id} value={c._id}>{c.name} — {c.mobile}</option>
                     ))}
                   </select>
@@ -590,7 +781,8 @@ const Loans = () => {
                   <input type="number" step="0.01" className="input-field py-2"
                     value={emiAmount}
                     onChange={e => { setEmiAmount(e.target.value); setEmiManuallyEdited(true); }}
-                    placeholder={t('autoCalculated')} />
+                    placeholder={t('autoCalculated')}
+                    disabled={reloanSourceId !== null} />
                 </div>
               </div>
             </div>
@@ -608,6 +800,7 @@ const Loans = () => {
                     onChange={handleVehicleNumberChange}
                     placeholder="TN24BB3313"
                     maxLength={10}
+                    disabled={reloanSourceId !== null}
                   />
                   <FieldError msg={errors.vehicleNumber} />
                 </div>
@@ -625,6 +818,7 @@ const Loans = () => {
                         setActiveMakeSuggestion(-1);
                         if (errors.make) setErrors(p => ({ ...p, make: '' }));
                       }}
+                      disabled={reloanSourceId !== null}
                       onFocus={() => {
                         setShowMakeSuggestions(true);
                         setActiveMakeSuggestion(-1);
@@ -670,6 +864,7 @@ const Loans = () => {
                     onChange={handleModelChange}
                     placeholder="mm/yyyy"
                     maxLength={7}
+                    disabled={reloanSourceId !== null}
                   />
                   <FieldError msg={errors.vehicleModel} />
                 </div>
@@ -683,7 +878,9 @@ const Loans = () => {
               <button type="submit" className="btn-primary w-auto py-2 px-8">
                 {formOptionsLoading
                   ? <><LoaderCircle size={16} className="mr-2 inline animate-spin" />Loading...</>
-                  : (editingId ? 'Update Loan' : t('createLoan'))}
+                  : (reloanSourceId !== null
+                    ? t('saveReloan')
+                    : editingId ? 'Update Loan' : t('createLoan'))}
               </button>
             </div>
           </form>
@@ -849,13 +1046,6 @@ const Loans = () => {
                   <tr
                     key={loan._id}
                     className="hover:bg-slate-50 transition-colors group"
-                    tabIndex={0}
-                    onMouseEnter={() => setHoveredLoanId(loan._id)}
-                    onMouseLeave={() => setHoveredLoanId(null)}
-                    onFocus={() => setHoveredLoanId(loan._id)}
-                    onBlur={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget)) setHoveredLoanId(null);
-                    }}
                   >
                     <td className="p-4 align-top">
                       <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-sm font-mono tracking-wide">{loan.hpNumber}</span>
@@ -885,9 +1075,7 @@ const Loans = () => {
                           <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
                           <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
                           {loan.guarantorReference && (
-                            <div className={`mt-1 text-[10px] text-violet-600 ${
-                              hoveredLoanId === loan._id ? 'block' : 'hidden'
-                            }`}>
+                            <div className="mt-1 text-[10px] text-violet-600">
                               <div className="flex items-center gap-1 font-semibold">
                                 <span className="rounded bg-violet-700 px-1 text-[9px] text-white">G</span>
                                 {t('guarantorLabel')} {loan.guarantorReference.name}
@@ -937,19 +1125,28 @@ const Loans = () => {
                       {canUpdateLoanStatus && activePickerId === loan._id && (
                         <div className="absolute top-12 left-4 z-[100] w-40 bg-white rounded-xl shadow-xl border border-slate-100 p-1 animate-in fade-in zoom-in-95 duration-150">
                           {STATUS_OPTIONS.map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => {
-                                handleStatusChange(loan._id, s);
-                                setActivePickerId(null);
-                              }}
-                              className={`flex items-center gap-3 w-full px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-colors
-                                ${loan.status === s ? 'bg-slate-50 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}
-                              `}
-                            >
-                              <span className={`inline-flex shrink-0 ${STATUS_STYLES[s].text}`}>{STATUS_STYLES[s].icon}</span>
-                              {t(STATUS_STYLES[s].labelKey)}
-                            </button>
+                            (() => {
+                              const reloanBlocked = s === 'reloan' && (loan.reloanFrom || loan.hasActiveReloan);
+                              const blockMessage = loan.reloanFrom ? t('reloanCannotRepeat') : t('activeReloanExists');
+                              return (
+                                <button
+                                  key={s}
+                                  disabled={reloanBlocked}
+                                  title={reloanBlocked ? blockMessage : undefined}
+                                  aria-disabled={reloanBlocked}
+                                  onClick={() => {
+                                    handleStatusChange(loan, s);
+                                    setActivePickerId(null);
+                                  }}
+                                  className={`flex items-center gap-3 w-full px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40
+                                    ${loan.status === s ? 'bg-slate-50 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}
+                                  `}
+                                >
+                                  <span className={`inline-flex shrink-0 ${STATUS_STYLES[s].text}`}>{STATUS_STYLES[s].icon}</span>
+                                  {t(STATUS_STYLES[s].labelKey)}
+                                </button>
+                              );
+                            })()
                           ))}
                         </div>
                       )}
@@ -971,7 +1168,7 @@ const Loans = () => {
                         </button>}
                         {canDeleteLoans && (
                           <button
-                            onClick={() => handleDelete(loan._id)}
+                            onClick={() => handleDelete(loan)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
                           >
                             <Trash2 size={16} />

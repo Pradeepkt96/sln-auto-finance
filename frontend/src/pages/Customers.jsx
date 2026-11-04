@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import sln from '../api';
-import { formatDate } from '../utils/dateUtils';
 import { transliterateTamilName } from '../utils/tamilTransliteration';
 import { toast } from '../utils/toast';
 import { 
@@ -672,7 +671,7 @@ const Customers = () => {
                               key={`${loanObj.role}-${loanObj.hpNumber}`}
                               to={`/loans?hpNumber=${encodeURIComponent(loanObj.hpNumber)}`}
                               title={`${loanObj.role === 'guarantor' ? t('guarantor') : t('vehicleOwner')} · ${loanObj.hpNumber}`}
-                              aria-label={`${loanObj.role === 'guarantor' ? t('guarantor') : t('vehicleOwner')} · ${loanObj.hpNumber}${loanObj.hpaDate ? ` (${formatDate(loanObj.hpaDate)})` : ''}`}
+                              aria-label={`${loanObj.role === 'guarantor' ? t('guarantor') : t('vehicleOwner')} · ${loanObj.hpNumber}`}
                               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
                                 loanObj.role === 'guarantor'
                                   ? 'bg-violet-50 text-violet-800 border-violet-200 hover:bg-violet-100 focus-visible:ring-violet-500'
@@ -684,7 +683,7 @@ const Customers = () => {
                               }`}>
                                 {loanObj.role === 'guarantor' ? 'G' : 'O'}
                               </span>
-                              {loanObj.hpNumber} {loanObj.hpaDate ? `(${formatDate(loanObj.hpaDate)})` : ''}
+                              {loanObj.hpNumber}
                               <ExternalLink size={12} strokeWidth={2.5} className="ml-1 shrink-0" />
                             </Link>
                           ))

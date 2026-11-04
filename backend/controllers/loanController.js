@@ -1,17 +1,24 @@
 const Loan = require('../models/Loan');
 const Payment = require('../models/Payment');
 const Customer = require('../models/Customer');
+const mongoose = require('mongoose');
 
 const logDebug = (msg, data) => {
   console.log(`[DEBUG] ${msg}${data ? ': ' + JSON.stringify(data) : ''}`);
 };
 
-const validateGuarantor = async (guarantorReference) => {
+const validateGuarantor = async (guarantorReference, customerReference) => {
   if (!guarantorReference) return;
 
+  if (customerReference?.toString() === guarantorReference.toString()) {
+    const error = new Error('Vehicle owner and guarantor must be different customers');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const guarantor = await Customer.findById(guarantorReference);
-  if (!guarantor || guarantor.subRole !== 'guarantor') {
-    const error = new Error('Selected guarantor must be a customer with the guarantor sub-role');
+  if (!guarantor) {
+    const error = new Error('Selected guarantor must be an existing customer');
     error.statusCode = 400;
     throw error;
   }
@@ -191,7 +198,35 @@ const getLoans = async (req, res) => {
       );
     }
 
-    pipeline.push({ $project: { hpaDateDisplay: 0 } });
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'loans',
+          let: { sourceLoanId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$reloanFrom', '$$sourceLoanId'] },
+                    { $eq: ['$status', 'active'] },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+            { $project: { _id: 1 } },
+          ],
+          as: 'activeReloanChildren',
+        },
+      },
+      {
+        $addFields: {
+          hasActiveReloan: { $gt: [{ $size: '$activeReloanChildren' }, 0] },
+        },
+      },
+      { $project: { hpaDateDisplay: 0, activeReloanChildren: 0 } }
+    );
 
     const loans = await Loan.aggregate(pipeline).collation({ locale: 'en_US', numericOrdering: true });
     if (!shouldPaginate) {
@@ -229,7 +264,7 @@ const createLoan = async (req, res) => {
   const {
     hpNumber, customerReference, guarantorReference,
     vehicleNumber, make, vehicleModel, color,
-    loanAmount, interestRate, installments, emiAmount, hpaDate,
+    loanAmount, interestRate, installments, emiAmount, hpaDate, reloanFrom,
   } = req.body;
 
   logDebug('--- CREATE LOAN REQUEST ---', req.body);
@@ -245,12 +280,32 @@ const createLoan = async (req, res) => {
   }
 
   try {
-    await validateGuarantor(guarantorReference);
+    await validateGuarantor(guarantorReference, customerReference);
+    if (reloanFrom) {
+      if (!mongoose.Types.ObjectId.isValid(reloanFrom)) {
+        return res.status(400).json({ message: 'Invalid source loan for reloan' });
+      }
+
+      const sourceLoan = await Loan.findById(reloanFrom).select('_id reloanFrom');
+      if (!sourceLoan) {
+        return res.status(404).json({ message: 'Source loan not found' });
+      }
+      if (sourceLoan.reloanFrom) {
+        return res.status(409).json({ message: 'A reloan record cannot be refinanced again' });
+      }
+
+      const activeReloan = await Loan.findOne({ reloanFrom, status: 'active' }).select('_id');
+      if (activeReloan) {
+        return res.status(409).json({ message: 'An active reloan already exists for this loan' });
+      }
+    }
+
     console.log('Creating loan with payload:', req.body);
     const loan = await Loan.create({
       hpNumber,
       customerReference,
       guarantorReference,
+      reloanFrom: reloanFrom || undefined,
       vehicleNumber: vehicleNumber.toUpperCase(),
       make,
       vehicleModel,
@@ -334,7 +389,10 @@ const updateLoan = async (req, res) => {
     const oldInstallments = loan.installments;
     const oldEmiAmount  = loan.emiAmount;
 
-    await validateGuarantor(req.body.guarantorReference);
+    await validateGuarantor(
+      req.body.guarantorReference,
+      req.body.customerReference || loan.customerReference
+    );
 
     // Update fields from req.body
     const fieldsToUpdate = [
