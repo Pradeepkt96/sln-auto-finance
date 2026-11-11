@@ -22,9 +22,9 @@ Reverse mode solves that rule:
 
 `loanAmount = (amountInHand + 1000) / 0.9`
 
-For reverse mode, round the calculated loan amount to the nearest ₹1,000 before computing EMI. Compute EMI with the existing rule, `(loanAmount * interestRate / 100) + loanAmount / installments`, and round the reverse-mode EMI to the nearest ₹1,000. For ₹10,000 in hand, the unrounded loan amount is ₹12,222.22, the displayed loan amount is ₹12,000, and at 2% for 10 installments the displayed EMI is ₹1,000. Show the actual in-hand amount after loan rounding: ₹9,800 in this example. Interest rate and installment count affect EMI, not the fixed-charge inversion.
+For reverse mode, round the calculated loan amount to the nearest ₹1,000 before computing EMI. Compute EMI with the existing rule, `(loanAmount * interestRate / 100) + loanAmount / installments`, then always round the reverse-mode EMI up to the next ₹100 (an exact multiple of ₹100 remains unchanged). For ₹10,000 in hand, the unrounded loan amount is ₹12,222.22, the displayed loan amount is ₹12,000, and at 2% for 10 installments the EMI is ₹1,440 rounded up to ₹1,500. Show the actual in-hand amount after loan rounding: ₹9,800 in this example. Interest rate and installment count affect EMI, not the fixed-charge inversion.
 
-Forward mode must retain its current loan amount and nearest-₹100 EMI behavior.
+Forward mode must retain its current loan amount and nearest-₹100 EMI behavior (standard nearest rounding, not always upward).
 
 ## Validation and state
 
@@ -37,6 +37,6 @@ Forward mode must retain its current loan amount and nearest-₹100 EMI behavior
 
 - Confirm forward-mode calculation and displayed results remain unchanged.
 - Confirm ₹10,000 in-hand at 2% for 10 installments produces a loan amount of ₹12,000, an EMI of ₹1,000, and actual in-hand of ₹9,800.
-- Confirm reverse mode rounds loan amount and EMI to nearest ₹1,000, while changing interest rate or installment count changes EMI but not loan amount.
+- Confirm reverse mode rounds loan amount to nearest ₹1,000 and rounds EMI up to the next ₹100, while changing interest rate or installment count changes EMI but not loan amount.
 - Confirm forward mode continues to round EMI to the nearest ₹100.
 - Confirm invalid or missing values do not produce success-shaped results.
