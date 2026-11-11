@@ -33,9 +33,8 @@ const getLoans = async (req, res) => {
     const query = {};
     const parsedPage = parseInt(page, 10);
     const parsedPageSize = parseInt(pageSize, 10);
-    const allowedPageSizes = [10, 20, 30, 50, 100];
     const effectivePage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-    const effectivePageSize = allowedPageSizes.includes(parsedPageSize) ? parsedPageSize : 10;
+    const effectivePageSize = Number.isInteger(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 10;
     const skip = (effectivePage - 1) * effectivePageSize;
     const shouldPaginate = !isNaN(parsedPage) || !isNaN(parsedPageSize);
 
@@ -286,12 +285,15 @@ const createLoan = async (req, res) => {
         return res.status(400).json({ message: 'Invalid source loan for reloan' });
       }
 
-      const sourceLoan = await Loan.findById(reloanFrom).select('_id reloanFrom');
+      const sourceLoan = await Loan.findById(reloanFrom).select('_id reloanFrom status');
       if (!sourceLoan) {
         return res.status(404).json({ message: 'Source loan not found' });
       }
       if (sourceLoan.reloanFrom) {
         return res.status(409).json({ message: 'A reloan record cannot be refinanced again' });
+      }
+      if (sourceLoan.status === 'reloan') {
+        return res.status(409).json({ message: 'This loan has already been reloaned' });
       }
 
       const activeReloan = await Loan.findOne({ reloanFrom, status: 'active' }).select('_id');
@@ -338,6 +340,18 @@ const createLoan = async (req, res) => {
     await Payment.insertMany(paymentDocs);
     console.log('Payments generated:', paymentDocs.length);
 
+    if (reloanFrom) {
+      const sourceUpdate = await Loan.updateOne(
+        { _id: reloanFrom, reloanFrom: { $in: [null] }, status: { $ne: 'reloan' } },
+        { $set: { status: 'reloan' } }
+      );
+      if (sourceUpdate.matchedCount !== 1) {
+        await Payment.deleteMany({ loanReference: loan._id });
+        await Loan.findByIdAndDelete(loan._id);
+        return res.status(409).json({ message: 'This loan has already been reloaned' });
+      }
+    }
+
     res.status(201).json(loan);
   } catch (error) {
     console.error('Loan Creation Error:', error);
@@ -357,6 +371,14 @@ const updateLoanStatus = async (req, res) => {
   }
 
   try {
+    const currentLoan = await Loan.findById(req.params.id).select('status');
+    if (!currentLoan) {
+      return res.status(404).json({ message: 'Loan not found' });
+    }
+    if (currentLoan.status === 'reloan' && status !== 'reloan') {
+      return res.status(409).json({ message: 'A reloaned loan status cannot be changed' });
+    }
+
     const loan = await Loan.findByIdAndUpdate(
       req.params.id,
       { status },
@@ -383,6 +405,9 @@ const updateLoan = async (req, res) => {
     const loan = await Loan.findById(id);
     if (!loan) {
       return res.status(404).json({ message: 'Loan not found' });
+    }
+    if (loan.status === 'reloan' && req.body.status !== undefined && req.body.status !== 'reloan') {
+      return res.status(409).json({ message: 'A reloaned loan status cannot be changed' });
     }
 
     const oldHpaTime    = loan.hpaDate     ? new Date(loan.hpaDate).getTime() : 0;

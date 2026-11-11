@@ -735,8 +735,8 @@ const Customers = () => {
             {' '}{t('of')}{' '}
             {totalRecords}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center justify-between gap-2 sm:justify-start">
               <button
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
                 disabled={page <= 1}
@@ -753,7 +753,7 @@ const Customers = () => {
                 {t('next')}
               </button>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-700">
+            <div className="flex items-center justify-between gap-2 text-sm text-slate-700 sm:justify-start">
               <label htmlFor="customer-page-size" className="font-medium text-slate-600">{t('customersPerPage')}</label>
               <select
                 id="customer-page-size"

@@ -27,9 +27,8 @@ const getCustomers = async (req, res) => {
     const parsedPageSize = parseInt(pageSize, 10);
     const shouldPaginate = !isNaN(parsedPage) || !isNaN(parsedPageSize);
     const effectivePage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-    const allowedPageSizes = [10, 20, 30, 50, 100];
     const effectivePageSize = shouldPaginate
-      ? (allowedPageSizes.includes(parsedPageSize) ? parsedPageSize : 10)
+      ? (Number.isInteger(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 10)
       : null;
     const skip = shouldPaginate ? (effectivePage - 1) * effectivePageSize : 0;
 

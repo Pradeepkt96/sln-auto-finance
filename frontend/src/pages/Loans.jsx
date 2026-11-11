@@ -723,7 +723,7 @@ const Loans = () => {
                       tabIndex={-1}
                       onChange={(e) => {
                         if (e.target.value) {
-                          setHpaDate(toDisplayInputDate(new Date(e.target.value + 'T00:00:00')));
+                          setHpaDate(toDisplayInputDate(e.target.value));
                           if (errors.hpaDate) setErrors(p => ({ ...p, hpaDate: '' }));
                         }
                       }}
@@ -1100,14 +1100,18 @@ const Loans = () => {
                           const style = STATUS_STYLES[loan.status] || STATUS_STYLES.active;
                           return canUpdateLoanStatus ? (
                             <button
-                              onClick={() => setActivePickerId(activePickerId === loan._id ? null : loan._id)}
-                              disabled={changingStatus === loan._id}
+                              onClick={() => {
+                                if (loan.status !== 'reloan') {
+                                  setActivePickerId(activePickerId === loan._id ? null : loan._id);
+                                }
+                              }}
+                              disabled={changingStatus === loan._id || loan.status === 'reloan'}
                               className={`flex w-full min-w-[150px] max-w-[150px] items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all shadow-sm
                                 ${style.bg} ${style.text} ${style.border}
-                                hover:shadow-md active:scale-95 disabled:opacity-50
+                                hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
                               `}
                               aria-haspopup="listbox"
-                              aria-expanded={activePickerId === loan._id}
+                              aria-expanded={loan.status !== 'reloan' && activePickerId === loan._id}
                             >
                               <span className="inline-flex shrink-0">{style.icon}</span>
                               <span className="flex-1 text-center">{style.labelKey ? t(style.labelKey) : (loan.status || 'unknown')}</span>
@@ -1122,7 +1126,7 @@ const Loans = () => {
                         })()
                       }
 
-                      {canUpdateLoanStatus && activePickerId === loan._id && (
+                      {canUpdateLoanStatus && loan.status !== 'reloan' && activePickerId === loan._id && (
                         <div className="absolute top-12 left-4 z-[100] w-40 bg-white rounded-xl shadow-xl border border-slate-100 p-1 animate-in fade-in zoom-in-95 duration-150">
                           {STATUS_OPTIONS.map((s) => (
                             (() => {
@@ -1191,8 +1195,8 @@ const Loans = () => {
             {' '}{t('of')}{' '}
             {totalRecords}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center justify-between gap-2 sm:justify-start">
               <button
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
                 disabled={page <= 1}
@@ -1209,7 +1213,7 @@ const Loans = () => {
                 {t('next')}
               </button>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-700">
+            <div className="flex items-center justify-between gap-2 text-sm text-slate-700 sm:justify-start">
               <label htmlFor="loan-page-size" className="font-medium text-slate-600">{t('loansPerPage')}</label>
               <select
                 id="loan-page-size"

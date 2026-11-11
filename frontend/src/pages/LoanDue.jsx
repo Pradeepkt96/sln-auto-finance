@@ -248,7 +248,7 @@ const LoanDue = () => {
         tabIndex={-1}
         onChange={(e) => {
           if (e.target.value && activePaidId.current) {
-            setField(activePaidId.current, 'paidDate', toDisplayInputDate(new Date(e.target.value + 'T00:00:00')));
+            setField(activePaidId.current, 'paidDate', toDisplayInputDate(e.target.value));
           }
         }}
       />
