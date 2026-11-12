@@ -21,7 +21,13 @@ function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       {/* Top Main Header */}
       <div className="bg-gradient-to-r from-primary-900 via-primary-800 to-indigo-950 text-white py-3 px-4 shadow-lg z-50 border-b border-primary-700/30">
-        <div className="container mx-auto flex justify-center items-center text-center">
+        <div className="container mx-auto flex justify-center items-center gap-3 text-center">
+          <img
+            src="/sri-lakshmi-narayana.jpeg"
+            alt=""
+            aria-hidden="true"
+            className="h-10 w-10 rounded-full object-cover shadow-md"
+          />
           <h1 className="text-xl md:text-3xl font-extrabold tracking-tight drop-shadow-sm">
             {t('appName')}
           </h1>

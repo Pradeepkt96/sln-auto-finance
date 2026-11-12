@@ -72,8 +72,8 @@ const EmiCalculator = () => {
         <form onSubmit={calculateEMI} className="space-y-6" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <label htmlFor="emi-calculator-amount" className="block text-sm font-medium text-slate-700">
+              <div className="relative mb-2 flex h-6 items-center">
+                <label htmlFor="emi-calculator-amount" className="block pr-12 text-sm font-medium text-slate-700">
                   {t(isReverseMode ? 'amountInHand' : 'loanAmount')} (₹)
                 </label>
                 <button
@@ -81,7 +81,7 @@ const EmiCalculator = () => {
                   onClick={toggleCalculationMode}
                   title={t(isReverseMode ? 'switchToForwardCalculation' : 'switchToReverseCalculation')}
                   aria-label={t(isReverseMode ? 'switchToForwardCalculation' : 'switchToReverseCalculation')}
-                  className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
                 >
                   <ArrowLeftRight size={18} aria-hidden="true" />
                 </button>
@@ -143,9 +143,11 @@ const EmiCalculator = () => {
         {result !== null && (
           <div className="mt-8 p-6 bg-gradient-to-r from-teal-50 to-primary-50 border border-t border-primary-100 rounded-xl space-y-6">
             {isReverseMode && (
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-4">
-                <h3 className="text-lg font-medium text-slate-700">{t('loanAmount')}</h3>
-                <div className="text-3xl font-bold text-primary-600">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-slate-700">{t('loanAmount')}</h3>
+                </div>
+                <div className="text-3xl font-bold text-primary-600 bg-white px-6 py-3 rounded-lg shadow-sm border border-primary-100">
                   ₹ {Number(result.loanAmount).toLocaleString('en-IN')}
                 </div>
               </div>
@@ -159,15 +161,17 @@ const EmiCalculator = () => {
                 ₹ {Number(result.emi).toLocaleString('en-IN')}
               </div>
             </div>
-            <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm border border-slate-200">
-              <div>
-                <h3 className="text-lg font-medium text-slate-700">{t('amountInHand')}</h3>
-                <p className="text-sm text-slate-500">{t('afterDeductingCharges')}</p>
+            {!isReverseMode && (
+              <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm border border-slate-200">
+                <div>
+                  <h3 className="text-lg font-medium text-slate-700">{t('amountInHand')}</h3>
+                  <p className="text-sm text-slate-500">{t('afterDeductingCharges')}</p>
+                </div>
+                <div className="text-3xl font-bold text-slate-800">
+                  ₹ {Number(result.handAmount).toLocaleString('en-IN')}
+                </div>
               </div>
-              <div className="text-3xl font-bold text-slate-800">
-                ₹ {Number(result.handAmount).toLocaleString('en-IN')}
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>

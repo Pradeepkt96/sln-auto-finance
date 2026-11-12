@@ -40,11 +40,13 @@ const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [customerDirectory, setCustomerDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const customerFetchId = useRef(0);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   // Search / Sort / Pagination state
   const [search, setSearch] = useState('');
+  const [customerType, setCustomerType] = useState('vehicle_owner');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
@@ -84,16 +86,19 @@ const Customers = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
+    const fetchId = ++customerFetchId.current;
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
       params.append('vehicleOwnersOnly', 'true');
+      params.append('customerType', customerType);
       params.append('page', page);
       params.append('pageSize', pageSize);
 
       const { data } = await sln.get(`/customers?${params.toString()}`);
+      if (fetchId !== customerFetchId.current) return;
       if (Array.isArray(data)) {
         setCustomers(data);
         setTotalPages(1);
@@ -104,15 +109,25 @@ const Customers = () => {
         setTotalRecords(data.meta?.totalRecords || 0);
       }
     } catch (error) {
-      console.error('Failed to fetch customers', error);
+      if (fetchId === customerFetchId.current) {
+        console.error('Failed to fetch customers', error);
+      }
     } finally {
-      setLoading(false);
+      if (fetchId === customerFetchId.current) setLoading(false);
     }
-  }, [search, sortBy, sortOrder, page, pageSize]);
+  }, [search, customerType, sortBy, sortOrder, page, pageSize]);
+
+  const handleCustomerTypeChange = (type) => {
+    if (customerType === type) return;
+    setCustomers([]);
+    setLoading(true);
+    setPage(1);
+    setCustomerType(type);
+  };
 
   useEffect(() => {
     setPage(1);
-  }, [search, sortBy, sortOrder, pageSize]);
+  }, [search, customerType, sortBy, sortOrder, pageSize]);
 
   useEffect(() => {
     if (totalRecords > 0 && !PAGE_SIZES.includes(pageSize)) {
@@ -559,13 +574,34 @@ const Customers = () => {
           </button>
         </div>
         
-        {canCreateCustomers && <button
-          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
-          className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10 ml-auto"
-        >
-          {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
-          {showForm ? t('cancel') : t('addCustomer')}
-        </button>}
+        <div className="ml-auto flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1" role="group" aria-label={t('customerSubRole')}>
+            {['vehicle_owner', 'guarantor'].map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => handleCustomerTypeChange(type)}
+                aria-pressed={customerType === type}
+                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  customerType === type
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {t(type === 'vehicle_owner' ? 'customerTypeVehicleOwner' : 'customerTypeGuarantor')}
+              </button>
+            ))}
+          </div>
+          {canCreateCustomers && (
+            <button
+              onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
+              className="btn-primary w-auto flex items-center py-2 px-4 shadow-sm h-10"
+            >
+              {showForm ? <X size={18} className="mr-2" /> : <PlusCircle size={18} className="mr-2" />}
+              {showForm ? t('cancel') : t('addCustomer')}
+            </button>
+          )}
+        </div>
       </div>
 
       {canEditCustomers && (
@@ -580,15 +616,7 @@ const Customers = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                <th 
-                  className="p-4 w-20 cursor-pointer hover:text-primary-600 transition-colors"
-                  onClick={() => handleSortToggle('slNo')}
-                >
-                  <div className="flex items-center">
-                    {t('serialNumber')}
-                    <SortIcon field="slNo" sortBy={sortBy} sortOrder={sortOrder} />
-                  </div>
-                </th>
+                <th className="w-20 p-4">{t('serialNumber')}</th>
                 <th 
                   className="p-4 cursor-pointer hover:text-primary-600 transition-colors"
                   onClick={() => handleSortToggle('name')}
@@ -623,7 +651,7 @@ const Customers = () => {
                     key={customer._id}
                     className="hover:bg-slate-50 transition-colors group"
                   >
-                    <td className="p-4 text-sm text-slate-400 font-bold">{customer.slNo || index + 1}</td>
+                    <td className="p-4 text-sm text-slate-400 font-bold">{(page - 1) * pageSize + index + 1}</td>
                     <td className="p-4 font-bold text-slate-800 flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center">
                         {customer.photoUrl ? (

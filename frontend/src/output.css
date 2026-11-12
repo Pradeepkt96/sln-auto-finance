@@ -777,6 +777,10 @@ select.input-field{
   left: 1rem;
 }
 
+.right-0{
+  right: 0px;
+}
+
 .right-3{
   right: 0.75rem;
 }
@@ -892,6 +896,10 @@ select.input-field{
   margin-top: 2rem;
 }
 
+.\!block{
+  display: block !important;
+}
+
 .block{
   display: block;
 }
@@ -946,6 +954,10 @@ select.input-field{
 
 .h-5{
   height: 1.25rem;
+}
+
+.h-6{
+  height: 1.5rem;
 }
 
 .h-64{
@@ -1569,6 +1581,11 @@ select.input-field{
   background-color: rgb(20 184 166 / 0.15);
 }
 
+.bg-primary-600{
+  --tw-bg-opacity: 1;
+  background-color: rgb(13 148 136 / var(--tw-bg-opacity, 1));
+}
+
 .bg-primary-900\/50{
   background-color: rgb(19 78 74 / 0.5);
 }
@@ -1821,6 +1838,10 @@ select.input-field{
 
 .pr-10{
   padding-right: 2.5rem;
+}
+
+.pr-12{
+  padding-right: 3rem;
 }
 
 .pr-2{
@@ -2653,6 +2674,11 @@ select.input-field{
   color: rgb(30 41 59 / var(--tw-text-opacity, 1));
 }
 
+.hover\:text-violet-800:hover{
+  --tw-text-opacity: 1;
+  color: rgb(91 33 182 / var(--tw-text-opacity, 1));
+}
+
 .hover\:text-white:hover{
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
@@ -2715,6 +2741,22 @@ select.input-field{
   outline-offset: 2px;
 }
 
+.focus-visible\:outline:focus-visible{
+  outline-style: solid;
+}
+
+.focus-visible\:outline-2:focus-visible{
+  outline-width: 2px;
+}
+
+.focus-visible\:outline-primary-500:focus-visible{
+  outline-color: #14b8a6;
+}
+
+.focus-visible\:outline-violet-500:focus-visible{
+  outline-color: #8b5cf6;
+}
+
 .focus-visible\:ring-2:focus-visible{
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
@@ -2757,6 +2799,14 @@ select.input-field{
   opacity: 0.6;
 }
 
+.group:focus-within .group-focus-within\:block{
+  display: block;
+}
+
+.group:hover .group-hover\:block{
+  display: block;
+}
+
 .group:hover .group-hover\:scale-110{
   --tw-scale-x: 1.1;
   --tw-scale-y: 1.1;
@@ -2773,6 +2823,10 @@ select.input-field{
     width: 33.333333%;
   }
 
+  .sm\:w-auto{
+    width: auto;
+  }
+
   .sm\:grid-cols-2{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2787,6 +2841,10 @@ select.input-field{
 
   .sm\:justify-start{
     justify-content: flex-start;
+  }
+
+  .sm\:justify-end{
+    justify-content: flex-end;
   }
 
   .sm\:justify-between{

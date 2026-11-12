@@ -289,9 +289,6 @@ const createLoan = async (req, res) => {
       if (!sourceLoan) {
         return res.status(404).json({ message: 'Source loan not found' });
       }
-      if (sourceLoan.reloanFrom) {
-        return res.status(409).json({ message: 'A reloan record cannot be refinanced again' });
-      }
       if (sourceLoan.status === 'reloan') {
         return res.status(409).json({ message: 'This loan has already been reloaned' });
       }
@@ -316,6 +313,7 @@ const createLoan = async (req, res) => {
       interestRate,
       installments,
       emiAmount,
+      status: 'active',
       hpaDate: hpaDate ? new Date(hpaDate) : undefined,
     });
 
@@ -342,7 +340,7 @@ const createLoan = async (req, res) => {
 
     if (reloanFrom) {
       const sourceUpdate = await Loan.updateOne(
-        { _id: reloanFrom, reloanFrom: { $in: [null] }, status: { $ne: 'reloan' } },
+        { _id: reloanFrom, status: { $ne: 'reloan' } },
         { $set: { status: 'reloan' } }
       );
       if (sourceUpdate.matchedCount !== 1) {

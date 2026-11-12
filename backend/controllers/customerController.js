@@ -19,6 +19,7 @@ const getCustomers = async (req, res) => {
       sortOrder,
       includeLoanNumbers = 'true',
       vehicleOwnersOnly,
+      customerType,
       page,
       pageSize,
     } = req.query;
@@ -33,7 +34,17 @@ const getCustomers = async (req, res) => {
     const skip = shouldPaginate ? (effectivePage - 1) * effectivePageSize : 0;
 
     let query = {};
-    if (vehicleOwnersOnly === 'true') {
+    if (customerType === 'vehicle_owner') {
+      const ownerIds = await Loan.distinct('customerReference', {
+        customerReference: { $ne: null },
+      });
+      query = { _id: { $in: ownerIds } };
+    } else if (customerType === 'guarantor') {
+      const guarantorIds = await Loan.distinct('guarantorReference', {
+        guarantorReference: { $ne: null },
+      });
+      query = { _id: { $in: guarantorIds } };
+    } else if (vehicleOwnersOnly === 'true') {
       const guarantorIds = await Loan.distinct('guarantorReference', {
         guarantorReference: { $ne: null },
       });

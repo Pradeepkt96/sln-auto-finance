@@ -73,6 +73,7 @@ const Loans = () => {
   const [reloanSourceId, setReloanSourceId] = useState(null);
   const [reloanDialogLoan, setReloanDialogLoan] = useState(null);
   const [reloanHpNumber, setReloanHpNumber] = useState('');
+  const [expandedGuarantorId, setExpandedGuarantorId] = useState(null);
   const [deleteDialogLoan, setDeleteDialogLoan] = useState(null);
   const [deletingLoanId, setDeletingLoanId] = useState(null);
 
@@ -386,8 +387,8 @@ const Loans = () => {
 
   const handleStatusChange = async (loan, newStatus) => {
     if (newStatus === 'reloan') {
-      if (loan.reloanFrom || loan.hasActiveReloan) {
-        toast.warning(t(loan.reloanFrom ? 'reloanCannotRepeat' : 'activeReloanExists'));
+      if (loan.hasActiveReloan) {
+        toast.warning(t('activeReloanExists'));
         return;
       }
       setReloanDialogLoan(loan);
@@ -410,9 +411,9 @@ const Loans = () => {
 
   const startReloan = () => {
     if (!reloanDialogLoan) return;
-    if (reloanDialogLoan.reloanFrom || reloanDialogLoan.hasActiveReloan) {
+    if (reloanDialogLoan.hasActiveReloan) {
       setReloanDialogLoan(null);
-      toast.warning(t(reloanDialogLoan.reloanFrom ? 'reloanCannotRepeat' : 'activeReloanExists'));
+      toast.warning(t('activeReloanExists'));
       return;
     }
 
@@ -1075,12 +1076,24 @@ const Loans = () => {
                           <div className="font-bold text-slate-800">{loan.customerReference?.name}</div>
                           <div className="text-xs text-slate-500">+91 {loan.customerReference?.mobile}</div>
                           {loan.guarantorReference && (
-                            <div className="mt-1 text-[10px] text-violet-600">
-                              <div className="flex items-center gap-1 font-semibold">
+                            <div className="group mt-1">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedGuarantorId(
+                                  expandedGuarantorId === loan._id ? null : loan._id
+                                )}
+                                aria-expanded={expandedGuarantorId === loan._id}
+                                className="flex items-center gap-1 rounded text-[10px] font-semibold text-violet-600 hover:text-violet-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500"
+                              >
                                 <span className="rounded bg-violet-700 px-1 text-[9px] text-white">G</span>
-                                {t('guarantorLabel')} {loan.guarantorReference.name}
+                                {t('guarantorLabel')}
+                              </button>
+                              <div className={`hidden text-[10px] text-violet-600 group-hover:block group-focus-within:block ${
+                                expandedGuarantorId === loan._id ? '!block' : ''
+                              }`}>
+                                <div className="font-semibold">{loan.guarantorReference.name}</div>
+                                <div className="text-violet-500">+91 {loan.guarantorReference.mobile}</div>
                               </div>
-                              <div className="text-violet-500">+91 {loan.guarantorReference.mobile}</div>
                             </div>
                           )}
                         </div>
@@ -1130,8 +1143,8 @@ const Loans = () => {
                         <div className="absolute top-12 left-4 z-[100] w-40 bg-white rounded-xl shadow-xl border border-slate-100 p-1 animate-in fade-in zoom-in-95 duration-150">
                           {STATUS_OPTIONS.map((s) => (
                             (() => {
-                              const reloanBlocked = s === 'reloan' && (loan.reloanFrom || loan.hasActiveReloan);
-                              const blockMessage = loan.reloanFrom ? t('reloanCannotRepeat') : t('activeReloanExists');
+                              const reloanBlocked = s === 'reloan' && loan.hasActiveReloan;
+                              const blockMessage = t('activeReloanExists');
                               return (
                                 <button
                                   key={s}
