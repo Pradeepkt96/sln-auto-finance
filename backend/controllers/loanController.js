@@ -2,10 +2,11 @@ const Loan = require('../models/Loan');
 const Payment = require('../models/Payment');
 const Customer = require('../models/Customer');
 const mongoose = require('mongoose');
-
-const logDebug = (msg, data) => {
-  console.log(`[DEBUG] ${msg}${data ? ': ' + JSON.stringify(data) : ''}`);
-};
+const {
+  getLoanFinancialValidationError,
+  getPaymentFinancialValidationError,
+  derivePaymentStatus,
+} = require('../utils/loanValidation');
 
 const validateGuarantor = async (guarantorReference, customerReference) => {
   if (!guarantorReference) return;
@@ -78,7 +79,7 @@ const getLoans = async (req, res) => {
     const allowedSortFields = ['loanAmount', 'emiAmount', 'installments', 'createdAt', 'hpNumber', 'hpaDate', 'status'];
     const sortField = sortBy === 'customerReference'
       ? 'customerReference.firstName'
-      : (allowedSortFields.includes(sortBy) ? sortBy : 'createdAt');
+      : (allowedSortFields.includes(sortBy) ? sortBy : 'hpNumber');
 
     const lookupStages = [
       {
@@ -266,10 +267,18 @@ const createLoan = async (req, res) => {
     loanAmount, interestRate, installments, emiAmount, hpaDate, reloanFrom,
   } = req.body;
 
-  logDebug('--- CREATE LOAN REQUEST ---', req.body);
-
   if (!hpaDate) {
     return res.status(400).json({ message: 'HPA Date is required' });
+  }
+
+  const financialError = getLoanFinancialValidationError({
+    loanAmount,
+    interestRate,
+    installments,
+    emiAmount,
+  });
+  if (financialError) {
+    return res.status(400).json({ message: financialError });
   }
 
   // Validate vehicle number format
@@ -299,7 +308,6 @@ const createLoan = async (req, res) => {
       }
     }
 
-    console.log('Creating loan with payload:', req.body);
     const loan = await Loan.create({
       hpNumber,
       customerReference,
@@ -412,6 +420,21 @@ const updateLoan = async (req, res) => {
     const oldInstallments = loan.installments;
     const oldEmiAmount  = loan.emiAmount;
 
+    const financialError = getLoanFinancialValidationError({
+      loanAmount: req.body.loanAmount === undefined ? loan.loanAmount : req.body.loanAmount,
+      interestRate: req.body.interestRate === undefined ? loan.interestRate : req.body.interestRate,
+      installments: req.body.installments === undefined ? loan.installments : req.body.installments,
+      emiAmount: req.body.emiAmount === undefined ? loan.emiAmount : req.body.emiAmount,
+    });
+    if (financialError) {
+      return res.status(400).json({ message: financialError });
+    }
+
+    const validStatuses = ['active', 'closed', 'reloan', 'collection'];
+    if (req.body.status !== undefined && !validStatuses.includes(req.body.status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
     await validateGuarantor(
       req.body.guarantorReference,
       req.body.customerReference || loan.customerReference
@@ -437,6 +460,11 @@ const updateLoan = async (req, res) => {
     });
 
     await loan.save();
+    console.info('Loan updated', {
+      actorId: req.user._id,
+      loanId: loan._id,
+      changedFields: Object.keys(req.body),
+    });
 
     const newHpaTime         = loan.hpaDate ? new Date(loan.hpaDate).getTime() : 0;
     const installmentsChanged = Number(loan.installments) !== Number(oldInstallments);
@@ -542,30 +570,53 @@ const getLoanPayments = async (req, res) => {
 // @route   PUT /api/payments/:id
 // @access  Private
 const updatePayment = async (req, res) => {
-  const { receivedAmount, receiptNo, paymentMode, penalty, collectionCharges, collectionChargesEnabled, status, paidDate } = req.body;
+  const { receivedAmount, receiptNo, paymentMode, penalty, collectionCharges, collectionChargesEnabled, paidDate } = req.body;
 
   try {
-    const payment = await Payment.findByIdAndUpdate(
-      req.params.id,
-      {
-        receivedAmount,
-        receiptNo,
-        paymentMode,
-        penalty,
-        collectionCharges,
-        collectionChargesEnabled,
-        status,
-        paidDate: paidDate || new Date(),
-      },
-      { returnDocument: 'after', runValidators: true }
-    );
-
-    if (!payment) {
+    const currentPayment = await Payment.findById(req.params.id);
+    if (!currentPayment) {
       return res.status(404).json({ message: 'Payment record not found' });
     }
+    const financialError = getPaymentFinancialValidationError({
+      receivedAmount,
+      penalty,
+      collectionCharges,
+    });
+    if (financialError) {
+      return res.status(400).json({ message: financialError });
+    }
 
+    const paymentReceived = receivedAmount === undefined ? currentPayment.receivedAmount : receivedAmount;
+    const derivedStatus = derivePaymentStatus(paymentReceived, currentPayment.amount, currentPayment.status);
+    currentPayment.receivedAmount = paymentReceived;
+    if (receiptNo !== undefined) currentPayment.receiptNo = receiptNo;
+    if (paymentMode !== undefined) currentPayment.paymentMode = paymentMode;
+    if (penalty !== undefined) currentPayment.penalty = penalty;
+    if (collectionCharges !== undefined) currentPayment.collectionCharges = collectionCharges;
+    if (collectionChargesEnabled !== undefined) currentPayment.collectionChargesEnabled = collectionChargesEnabled;
+    currentPayment.status = derivedStatus;
+    if (paidDate !== undefined) {
+      const parsedPaidDate = new Date(paidDate);
+      if (Number.isNaN(parsedPaidDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid paid date' });
+      }
+      currentPayment.paidDate = parsedPaidDate;
+    } else if (paymentReceived > 0) {
+      currentPayment.paidDate = new Date();
+    } else {
+      currentPayment.paidDate = undefined;
+    }
+    const payment = await currentPayment.save();
+
+    console.info('Payment updated', {
+      actorId: req.user._id,
+      paymentId: payment._id,
+      changedFields: Object.keys(req.body).filter((field) => field !== 'status'),
+      status: payment.status,
+    });
     res.json(payment);
   } catch (error) {
+    console.error('Payment Update Error:', error);
     res.status(500).json({ message: 'Server error updating payment' });
   }
 };

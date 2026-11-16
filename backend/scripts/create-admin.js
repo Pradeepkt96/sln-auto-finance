@@ -2,36 +2,39 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const { isPasswordValid } = require('../utils/passwordPolicy');
 
 const createAdmin = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/sln_auto_finance';
+    const { MONGO_URI, ADMIN_MOBILE, ADMIN_PASSWORD } = process.env;
+    if (!MONGO_URI || !ADMIN_MOBILE || !ADMIN_PASSWORD) {
+      throw new Error('MONGO_URI, ADMIN_MOBILE and ADMIN_PASSWORD must be set');
+    }
+    if (!/^\d{10}$/.test(ADMIN_MOBILE) || !isPasswordValid(ADMIN_PASSWORD)) {
+      throw new Error('ADMIN_MOBILE must be 10 digits and ADMIN_PASSWORD must meet the password policy');
+    }
+
+    const mongoUri = MONGO_URI;
     await mongoose.connect(mongoUri);
 
-    const mobile = '8317343946';
-    const password = 'pradeep123'; // Default password
-
-    const existingUser = await User.findOne({ mobile });
+    const existingUser = await User.findOne({ mobile: ADMIN_MOBILE });
 
     if (existingUser) {
       existingUser.role = 'admin';
-      existingUser.password = password; // it will be hashed by the pre-save hook
+      existingUser.password = ADMIN_PASSWORD;
       await existingUser.save();
-      console.log('User already existed. Updated to admin with password: ' + password);
     } else {
       await User.create({
-        mobile,
-        password,
+        mobile: ADMIN_MOBILE,
+        password: ADMIN_PASSWORD,
         role: 'admin'
       });
-      console.log('Admin user successfully created!');
-      console.log(`Mobile: ${mobile}`);
-      console.log(`Password: ${password}`);
     }
 
+    console.log('Admin account provisioned successfully.');
     process.exit(0);
   } catch (err) {
-    console.error('Error creating admin:', err);
+    console.error('Error creating admin. Check the database connection and required environment variables.');
     process.exit(1);
   }
 };

@@ -83,7 +83,7 @@ const Loans = () => {
   const [searchCustomer, setSearchCustomer] = useState('');
   const [searchVehicle, setSearchVehicle] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortBy, setSortBy] = useState('hpNumber');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);

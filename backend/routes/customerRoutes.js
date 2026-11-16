@@ -22,7 +22,7 @@ const upload = multer({
 const router = express.Router();
 
 router.route('/')
-  .get(protect, getCustomers)
+  .get(protect, authorizeRoles('admin', 'staff'), getCustomers)
   .post(protect, authorizeRoles('admin'), createCustomer);
 
 router.route('/:id')
