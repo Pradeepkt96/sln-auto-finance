@@ -6,6 +6,14 @@ const {
   derivePaymentStatus,
 } = require('../utils/loanValidation');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
+const User = require('../models/User');
+
+test('user model includes viewer role', () => {
+  assert.deepEqual(
+    User.schema.path('role').enumValues,
+    ['admin', 'staff', 'viewer', 'customer']
+  );
+});
 
 test('loan financial values must be valid and EMI must cover principal', () => {
   const validLoan = {
@@ -53,4 +61,27 @@ test('staff-only authorization rejects customer roles and permits staff', () => 
 
   authorizeStaff({ user: { role: 'staff' } }, response, () => { nextCalled = true; });
   assert.equal(nextCalled, true);
+});
+
+test('viewer authorization permits reads and rejects write roles', () => {
+  const authorizeRead = authorizeRoles('admin', 'staff', 'viewer');
+  const authorizeWrite = authorizeRoles('admin', 'staff');
+
+  let readNextCalled = false;
+  let writeNextCalled = false;
+  const response = {
+    statusCode: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json() {},
+  };
+
+  authorizeRead({ user: { role: 'viewer' } }, response, () => { readNextCalled = true; });
+  assert.equal(readNextCalled, true);
+
+  authorizeWrite({ user: { role: 'viewer' } }, response, () => { writeNextCalled = true; });
+  assert.equal(response.statusCode, 403);
+  assert.equal(writeNextCalled, false);
 });

@@ -11,7 +11,9 @@ const PrivateRoute = ({ allowedRoles }) => {
 
   if (!token) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(role)) {
-    return <Navigate to={role === 'customer' ? '/customers' : '/profile'} replace />;
+    if (role === 'customer') return <Navigate to="/customers" replace />;
+    if (role === 'viewer') return <Navigate to="/loans" replace />;
+    return <Navigate to="/profile" replace />;
   }
 
   return <Outlet />;

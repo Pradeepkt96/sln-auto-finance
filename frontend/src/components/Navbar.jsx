@@ -35,7 +35,9 @@ const Navbar = () => {
 
   const visibleNavLinks = role === 'customer'
     ? navLinks.filter((link) => ['/emi-calculator', '/customers', '/loans', '/profile'].includes(link.path))
-    : navLinks;
+    : role === 'viewer'
+      ? navLinks.filter((link) => ['/emi-calculator', '/customers', '/loans', '/profile'].includes(link.path))
+      : navLinks;
 
   if (!token) return null; // Don't show navbar on login/register if not logged in
 

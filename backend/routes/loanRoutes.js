@@ -18,14 +18,14 @@ const router = express.Router();
 router.get('/vehicle-makes', protect, getVehicleMakes);
 
 router.route('/')
-  .get(protect, authorizeRoles('admin', 'staff'), getLoans)
+  .get(protect, authorizeRoles('admin', 'staff', 'viewer'), getLoans)
   .post(protect, authorizeRoles('admin'), createLoan);
 
 router.route('/:id/recalculate-dues')
   .put(protect, authorizeRoles('admin', 'staff'), recalculateDueDates);
 
 router.route('/:id/payments')
-  .get(protect, authorizeRoles('admin', 'staff'), getLoanPayments);
+  .get(protect, authorizeRoles('admin', 'staff', 'viewer'), getLoanPayments);
 
 router.route('/:id/status')
   .put(protect, authorizeRoles('admin', 'staff'), updateLoanStatus);

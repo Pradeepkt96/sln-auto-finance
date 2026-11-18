@@ -41,7 +41,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           
           <Route element={<PrivateRoute />}>
-            <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin', 'staff']} />}>
+            <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin', 'staff', 'viewer']} />}>
               <Route index element={<Dashboard />} />
             </Route>
             <Route path="/emi-calculator" element={<EmiCalculator />} />

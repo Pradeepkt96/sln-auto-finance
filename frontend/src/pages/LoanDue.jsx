@@ -35,7 +35,7 @@ const LoanDue = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const role = localStorage.getItem('role');
-  const canEditLedger = role !== 'customer';
+  const canEditLedger = ['admin', 'staff'].includes(role);
 
   const [loan, setLoan]         = useState(null);
   const [payments, setPayments] = useState([]);

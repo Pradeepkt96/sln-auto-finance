@@ -20,7 +20,7 @@ router.post('/registration-otp-requests/:id/compose', protect, authorizeRoles('a
 router.post('/verify-register', verifyRegisterOTP);
 router.post('/login', loginUser);
 router.get('/me', protect, getMe);
-router.put('/change-password', protect, changePassword);
-router.put('/profile', protect, updateProfile);
+router.put('/change-password', protect, authorizeRoles('admin', 'staff', 'customer'), changePassword);
+router.put('/profile', protect, authorizeRoles('admin', 'staff', 'customer'), updateProfile);
 
 module.exports = router;
