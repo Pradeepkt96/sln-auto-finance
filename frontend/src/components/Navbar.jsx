@@ -45,12 +45,6 @@ const Navbar = () => {
     <nav className="bg-dark-bg text-dark-text shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-14">
-          <div className="flex items-center space-x-2">
-            <span className="text-xl font-bold bg-gradient-to-r from-primary-400 to-teal-200 bg-clip-text text-transparent">
-              {t('appName')}
-            </span>
-          </div>
-
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-1">
             {visibleNavLinks.map((link) => {
